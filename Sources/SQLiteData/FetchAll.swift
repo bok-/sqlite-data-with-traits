@@ -1,3 +1,4 @@
+import GRDB
 import Sharing
 
 #if canImport(Combine)
@@ -18,17 +19,56 @@ import Sharing
 /// See <doc:Fetching> for more information.
 @dynamicMemberLookup
 @propertyWrapper
+#if !canImport(PerceptionCore)
+@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+#endif
 public struct FetchAll<Element: Sendable>: Sendable {
-  /// The underlying shared reader powering the property wrapper.
+    enum State {
+        case sharedReader(SharedReader<[Element]>)
+        case sharedReaderFactory((DatabaseReader?) -> SharedReader<[Element]>)
+    }
+
+    private let state: _ManagedCriticalState<State>
+
+    /// The underlying shared reader powering the property wrapper.
   ///
   /// Shared readers come from the [Sharing](https://github.com/pointfreeco/swift-sharing) package,
   /// a general solution to observing and persisting changes to external data sources.
-  public var sharedReader: SharedReader<[Element]> = SharedReader(value: [])
+    public var sharedReader: SharedReader<[Element]> {
+        state.withCriticalRegion { state in
+            switch state {
+            case let .sharedReader(sharedReader):
+                return sharedReader
+            case let .sharedReaderFactory(factory):
+                let sharedReader = factory(nil)             // Rely solely on @Dependeny and the @TaskLocal
+                state = .sharedReader(sharedReader)
+                return sharedReader
+            }
+        }
+    }
 
   /// A collection of data associated with the underlying query.
   public var wrappedValue: [Element] {
     sharedReader.wrappedValue
   }
+
+    #if canImport(SwiftUI)
+    @Environment(\.defaultDatabase) private var defaultDatabase
+    #endif
+
+    /// Returns the provided database, or falls through to the globally available database using the following:
+    ///
+    /// 1. @Environment(\.defaultDatabase), if set.
+    /// 2. @Dependency(\.defaultDatabase), if compiled with the `SQLiteDataDependencies` trait
+    /// 3. The `Database.defaultDatabase` @TaskLocal.
+    ///
+    private func databaseOrDefault(_ reader: (any DatabaseReader)?) -> (any DatabaseReader)? {
+        #if canImport(SwiftUI)
+        reader ?? defaultDatabase
+        #else
+        reader
+        #endif
+    }
 
   /// Returns this property wrapper.
   ///
@@ -89,7 +129,7 @@ public struct FetchAll<Element: Sendable>: Sendable {
   /// Initializes this property with a default value.
   @_disfavoredOverload
   public init(wrappedValue: [Element] = []) {
-    sharedReader = SharedReader(value: wrappedValue)
+      state = .init(.sharedReader(SharedReader(value: wrappedValue)))
   }
 
   /// Initializes this property with a query associated with the wrapped value.
@@ -130,13 +170,15 @@ public struct FetchAll<Element: Sendable>: Sendable {
     Element == V.QueryOutput,
     V.QueryOutput: Sendable
   {
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(
-        FetchAllStatementValueRequest(statement: statement),
-        database: database
-      )
-    )
+      state = .init(.sharedReaderFactory {
+          SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(
+                FetchAllStatementValueRequest(statement: statement),
+                database: database ?? $0
+            )
+          )
+      })
   }
 
   /// Initializes this property with a query associated with the wrapped value.
@@ -155,13 +197,15 @@ public struct FetchAll<Element: Sendable>: Sendable {
     Element: QueryRepresentable,
     Element == S.QueryValue.QueryOutput
   {
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(
-        FetchAllStatementValueRequest(statement: statement),
-        database: database
-      )
-    )
+      state = .init(.sharedReaderFactory {
+          SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(
+                FetchAllStatementValueRequest(statement: statement),
+                database: database ?? $0
+            )
+          )
+      })
   }
 
   /// Replaces the wrapped value with data from the given query.
@@ -201,12 +245,15 @@ public struct FetchAll<Element: Sendable>: Sendable {
     try await sharedReader.load(
       .fetch(
         FetchAllStatementValueRequest(statement: statement),
-        database: database
+        database: databaseOrDefault(database)
       )
     )
   }
 }
 
+#if !canImport(PerceptionCore)
+@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+#endif
 extension FetchAll {
   /// Initializes this property with a query that fetches every row from a table.
   ///
@@ -270,14 +317,16 @@ extension FetchAll {
     Element == V.QueryOutput,
     V.QueryOutput: Sendable
   {
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(
-        FetchAllStatementValueRequest(statement: statement),
-        database: database,
-        scheduler: scheduler
-      )
-    )
+      state = .init(.sharedReaderFactory {
+          SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(
+                FetchAllStatementValueRequest(statement: statement),
+                database: database ?? $0,
+                scheduler: scheduler
+            )
+          )
+      })
   }
 
   /// Initializes this property with a query associated with the wrapped value.
@@ -299,14 +348,16 @@ extension FetchAll {
     Element: QueryRepresentable,
     Element == S.QueryValue.QueryOutput
   {
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(
-        FetchAllStatementValueRequest(statement: statement),
-        database: database,
-        scheduler: scheduler
-      )
-    )
+      state = .init(.sharedReaderFactory {
+          SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(
+                FetchAllStatementValueRequest(statement: statement),
+                database: database ?? $0,
+                scheduler: scheduler
+            )
+          )
+      })
   }
 
   /// Replaces the wrapped value with data from the given query.
@@ -352,19 +403,25 @@ extension FetchAll {
     try await sharedReader.load(
       .fetch(
         FetchAllStatementValueRequest(statement: statement),
-        database: database,
+        database: databaseOrDefault(database),
         scheduler: scheduler
       )
     )
   }
 }
 
+#if !canImport(PerceptionCore)
+@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+#endif
 extension FetchAll: CustomReflectable {
   public var customMirror: Mirror {
     Mirror(reflecting: wrappedValue)
   }
 }
 
+#if !canImport(PerceptionCore)
+@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+#endif
 extension FetchAll: Equatable where Element: Equatable {
   public static func == (lhs: Self, rhs: Self) -> Bool {
     lhs.sharedReader == rhs.sharedReader
@@ -372,8 +429,16 @@ extension FetchAll: Equatable where Element: Equatable {
 }
 
 #if canImport(SwiftUI)
+#if !canImport(PerceptionCore)
+@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+#endif
   extension FetchAll: DynamicProperty {
     public func update() {
+        state.withCriticalRegion { state in
+            if case .sharedReaderFactory(let factory) = state {
+                state = .sharedReader(factory(defaultDatabase))
+            }
+        }
       sharedReader.update()
     }
 
@@ -526,7 +591,7 @@ extension FetchAll: Equatable where Element: Equatable {
       try await sharedReader.load(
         .fetch(
           FetchAllStatementValueRequest(statement: statement),
-          database: database,
+          database: databaseOrDefault(database),
           animation: animation
         )
       )

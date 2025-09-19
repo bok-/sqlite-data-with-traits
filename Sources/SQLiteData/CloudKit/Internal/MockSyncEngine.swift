@@ -1,6 +1,10 @@
 import CloudKit
-import CustomDump
+import ConcurrencyExtras
 import OrderedCollections
+
+#if canImport(CustomDump)
+  import CustomDump
+#endif
 
 @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
 package final class MockSyncEngine: SyncEngineProtocol {
@@ -103,6 +107,7 @@ package final class MockSyncEngine: SyncEngineProtocol {
     column: UInt = #column
   ) {
     _fetchChangesScopes.withValue {
+        #if canImport(IssueReporting)
       expectNoDifference(
         scopes,
         $0,
@@ -111,6 +116,7 @@ package final class MockSyncEngine: SyncEngineProtocol {
         line: line,
         column: column
       )
+        #endif
       $0.removeAll()
     }
   }
@@ -123,6 +129,7 @@ package final class MockSyncEngine: SyncEngineProtocol {
     column: UInt = #column
   ) {
     _acceptedShareMetadata.withValue {
+#if canImport(IssueReporting)
       expectNoDifference(
         sharedMetadata,
         $0,
@@ -131,6 +138,7 @@ package final class MockSyncEngine: SyncEngineProtocol {
         line: line,
         column: column
       )
+        #endif
       $0.removeAll()
     }
   }
@@ -140,7 +148,7 @@ package final class MockSyncEngine: SyncEngineProtocol {
 }
 
 @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
-package final class MockSyncEngineState: CKSyncEngineStateProtocol, CustomDumpReflectable {
+package final class MockSyncEngineState: CKSyncEngineStateProtocol {
   private let _pendingRecordZoneChanges = LockIsolated<
     OrderedSet<CKSyncEngine.PendingRecordZoneChange>
   >([]
@@ -173,6 +181,7 @@ package final class MockSyncEngineState: CKSyncEngineStateProtocol, CustomDumpRe
     column: UInt = #column
   ) {
     _pendingRecordZoneChanges.withValue {
+#if canImport(IssueReporting)
       expectNoDifference(
         Set(changes),
         Set($0),
@@ -181,6 +190,7 @@ package final class MockSyncEngineState: CKSyncEngineStateProtocol, CustomDumpRe
         line: line,
         column: column
       )
+        #endif
       $0.removeAll()
     }
   }
@@ -193,6 +203,7 @@ package final class MockSyncEngineState: CKSyncEngineStateProtocol, CustomDumpRe
     column: UInt = #column
   ) {
     _pendingDatabaseChanges.withValue {
+#if canImport(IssueReporting)
       expectNoDifference(
         Set(changes),
         Set($0),
@@ -201,6 +212,7 @@ package final class MockSyncEngineState: CKSyncEngineStateProtocol, CustomDumpRe
         line: line,
         column: column
       )
+        #endif
       $0.removeAll()
     }
   }
@@ -263,6 +275,11 @@ package final class MockSyncEngineState: CKSyncEngineStateProtocol, CustomDumpRe
   }
 }
 
+#if canImport(CustomDump)
+@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+extension MockSyncEngineState: CustomDumpReflectable {}
+#endif
+
 @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
 private func comparePendingRecordZoneChange(
   _ lhs: CKSyncEngine.PendingRecordZoneChange,
@@ -313,6 +330,7 @@ extension SyncEngine {
     let syncEngine = syncEngine(for: scope)
     guard !syncEngine.state.pendingRecordZoneChanges.isEmpty
     else {
+#if canImport(IssueReporting)
       reportIssue(
         "Processing empty set of record zone changes.",
         fileID: fileID,
@@ -320,10 +338,12 @@ extension SyncEngine {
         line: line,
         column: column
       )
+        #endif
       return
     }
     guard try await container.accountStatus() == .available
     else {
+#if canImport(IssueReporting)
       reportIssue(
         """
         User must be logged in to process pending changes.
@@ -333,6 +353,7 @@ extension SyncEngine {
         line: line,
         column: column
       )
+        #endif
       return
     }
 

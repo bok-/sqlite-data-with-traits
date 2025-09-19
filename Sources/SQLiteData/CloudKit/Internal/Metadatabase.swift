@@ -24,12 +24,20 @@
       withIntermediateDirectories: true
     )
 
+      #if canImport(Dependencies)
     @Dependency(\.context) var context
     guard !url.isInMemory || context != .live
     else {
       struct InMemoryDatabase: Error {}
       throw InMemoryDatabase()
     }
+      #else
+      guard !url.isInMemory
+      else {
+        struct InMemoryDatabase: Error {}
+        throw InMemoryDatabase()
+      }
+      #endif
 
     let metadatabase: any DatabaseWriter =
       if url.isInMemory {

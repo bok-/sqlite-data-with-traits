@@ -1,8 +1,12 @@
 #if canImport(CloudKit)
   import CloudKit
   import ConcurrencyExtras
-  import CustomDump
-  import Dependencies
+  #if canImport(CustomDump)
+    import CustomDump
+  #endif
+  #if canImport(Dependencies)
+    import Dependencies
+  #endif
   import OrderedCollections
   import OSLog
   import Observation
@@ -12,6 +16,15 @@
   #if canImport(UIKit)
     import UIKit
   #endif
+
+private func shouldStartImmediately() -> Bool {
+    #if canImport(Dependencies)
+    DependencyValues._current.context == .live
+    #else
+    true
+    #endif
+}
+
 
   /// An object that manages the synchronization of local and remote SQLite data.
   ///
@@ -32,7 +45,11 @@
       @Sendable (any DatabaseReader, SyncEngine)
         -> (private: any SyncEngineProtocol, shared: any SyncEngineProtocol)
     package let container: any CloudContainer
-    let dataManager = Dependency(\.dataManager)
+#if canImport(Dependencies)
+let dataManager = Dependency(\.dataManager)
+#else
+let dataManager = LiveDataManager()
+#endif
     private let observationRegistrar = ObservationRegistrar()
     private let notificationsObserver = LockIsolated<(any NSObjectProtocol)?>(nil)
 
@@ -83,9 +100,8 @@
       privateTables: repeat (each T2).Type,
       containerIdentifier: String? = nil,
       defaultZone: CKRecordZone = CKRecordZone(zoneName: "co.pointfree.SQLiteData.defaultZone"),
-      startImmediately: Bool = DependencyValues._current.context == .live,
-      logger: Logger = isTesting
-        ? Logger(.disabled) : Logger(subsystem: "SQLiteData", category: "CloudKit")
+      startImmediately: Bool? = nil,
+      logger: Logger? = nil
     ) throws
     where
       repeat (each T1).PrimaryKey.QueryOutput: IdentifierStringConvertible,
@@ -94,6 +110,14 @@
       let containerIdentifier =
         containerIdentifier
         ?? ModelConfiguration(groupContainer: .automatic).cloudKitContainerIdentifier
+        let startImmediately = startImmediately ?? shouldStartImmediately()
+
+        #if canImport(IssueReporting)
+        let logger = logger
+            ?? (isTesting ? Logger(.disabled) : Logger(subsystem: "SQLiteData", category: "CloudKit"))
+        #else
+        let logger = logger ?? Logger(subsystem: "SQLiteData", category: "CloudKit")
+        #endif
 
       var allTables: [any (PrimaryKeyedTable & _SendableMetatype).Type] = []
       var allPrivateTables: [any (PrimaryKeyedTable & _SendableMetatype).Type] = []
@@ -105,6 +129,11 @@
       }
       let userDatabase = UserDatabase(database: database)
 
+        #if canImport(IssueReporting)
+        let isTesting = IssueReporting.isTesting
+        #else
+        let isTesting = false
+        #endif
       guard !isTesting
       else {
         let privateDatabase = MockCloudDatabase(databaseScope: .private)
@@ -258,7 +287,11 @@
         tablesByName: tablesByName
       )
       #if os(iOS)
+        #if canImport(Dependencies)
         @Dependency(\.defaultNotificationCenter) var defaultNotificationCenter
+        #else
+        let defaultNotificationCenter = NotificationCenter.default
+        #endif
         notificationsObserver.withValue {
           $0 = defaultNotificationCenter.addObserver(
             forName: UIApplication.willResignActiveNotification,
@@ -707,7 +740,9 @@
     package func acceptShare(metadata: ShareMetadata) async throws {
       guard let rootRecordID = metadata.hierarchicalRootRecordID
       else {
+          #if canImport(IssueReporting)
         reportIssue("Attempting to share without root record information.")
+          #endif
         return
       }
       let container = type(of: container).createContainer(identifier: metadata.containerIdentifier)
@@ -761,7 +796,9 @@
     public func handleEvent(_ event: CKSyncEngine.Event, syncEngine: CKSyncEngine) async {
       guard let event = Event(event)
       else {
+          #if canImport(IssueReporting)
         reportIssue("Unrecognized event received: \(event)")
+          #endif
         return
       }
       await handleEvent(event, syncEngine: syncEngine)
@@ -1146,7 +1183,10 @@
               case .encryptedDataReset:
                 try uploadRecords(in: zoneID, db: db)
               @unknown default:
+#if canImport(IssueReporting)
                 reportIssue("Unknown deletion reason: \(reason)")
+                  #endif
+                  break
               }
             }
             return defaultZoneDeleted
@@ -1703,10 +1743,16 @@
         columnNames
           .map { columnName in
             if let asset = record[columnName] as? CKAsset {
+                #if canImport(Dependencies)
               let data = try? asset.fileURL.map { try dataManager.wrappedValue.load($0) }
+                #else
+                let data = try? asset.fileURL.map { try dataManager.load($0) }
+                #endif
+#if canImport(IssueReporting)
               if data == nil {
                 reportIssue("Asset data not found on disk")
               }
+#endif
               return data?.queryFragment ?? "NULL"
             } else {
               return record.encryptedValues[columnName]?.queryFragment ?? "NULL"
@@ -1719,10 +1765,16 @@
         nonPrimaryKeyChangedColumns
           .map { columnName in
             if let asset = record[columnName] as? CKAsset {
+                #if canImport(Dependencies)
               let data = try? asset.fileURL.map { try dataManager.wrappedValue.load($0) }
+                #else
+                let data = try? asset.fileURL.map { try dataManager.load($0) }
+                #endif
+#if canImport(IssueReporting)
               if data == nil {
                 reportIssue("Asset data not found on disk")
               }
+                #endif
               return "\(quote: columnName) = \(data?.queryFragment ?? "NULL")"
             } else {
               return
@@ -1825,7 +1877,9 @@
     package var `private`: (any SyncEngineProtocol)? {
       guard let `private` = rawValue?.private
       else {
+#if canImport(IssueReporting)
         reportIssue("Private sync engine has not been set.")
+          #endif
         return nil
       }
       return `private`
@@ -1833,7 +1887,9 @@
     package var `shared`: (any SyncEngineProtocol)? {
       guard let `shared` = rawValue?.shared
       else {
+#if canImport(IssueReporting)
         reportIssue("Shared sync engine has not been set.")
+          #endif
         return nil
       }
       return `shared`
@@ -2090,7 +2146,11 @@
       allColumnNames
         .map { columnName in
           if let asset = record[columnName] as? CKAsset {
+              #if canImport(Dependencies)
             @Dependency(\.dataManager) var dataManager
+              #else
+              let dataManager = LiveDataManager()
+              #endif
             return (try? asset.fileURL.map { try dataManager.load($0) })?
               .queryFragment ?? "NULL"
           } else {

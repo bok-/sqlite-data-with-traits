@@ -1,5 +1,8 @@
-import Dependencies
 import StructuredQueriesCore
+
+#if canImport(Dependencies)
+  import Dependencies
+#endif
 
 extension Database {
   /// Seeds a database with the given values.

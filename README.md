@@ -20,6 +20,23 @@ CloudKit synchronization.
   * [Community](#Community)
   * [License](#License)
 
+>[!NOTE]
+>This package is a fork of [sqlite-data](https://github.com/pointfreeco/sqlite-data) with additional traits for opt-in features, making it more _composable_. Upstream is merged sporadically.
+>
+>### Why does this fork exist?
+>
+>[Point-Free](https://www.pointfree.co) make good software and tools, but often their packages come with dependencies on the rest of the Point-Free ecosystem for entirely optional behaviour. So even if you don't want or need those dependencies, you have them anyway. Wrapping optional behaviour in traits is easy, but unfortunately there are bugs in Xcode (up to and including 26.0) and it doesn't respect default enabled traits. So were Point-Free to accept a PR with these traits it would be a backwards-incompatible change as far as Xcode is concerned, hence this fork.
+>
+> To run unit tests successfully for this package you will need to enable several traits:
+>
+>```swift
+>swift test --enable-all-traits
+>```
+
+>[!IMPORTANT]
+>Without traits, this package relies solely on Apple's [Observation framework](https://developer.apple.com/documentation/observation) and its integration with SwiftUI. Observation requires iOS 17+, macOS 14+ tvOS 17+, and watchOS 10+.
+>If you need to support earlier versions than this include the `SQLiteDataPerception` trait, which will enable support for Point-Free's [Perception framework](https://github.com/pointfreeco/swift-perception) which will lower the minimum required versions to iOS 13+, macOS 10.15+, tvOS 13+ and watchOS 7+.
+
 ## Learn more
 
 This library was motivated and designed over the course of many episodes on
@@ -35,7 +52,7 @@ library, [subscribe today](https://www.pointfree.co/pricing).
 ## Overview
 
 SQLiteData is a [fast](#performance), lightweight replacement for SwiftData, including CloudKit
-synchronization (and even CloudKit sharing), built on top of the popular [GRDB] library. 
+synchronization (and even CloudKit sharing), built on top of the popular [GRDB] library.
 To populate data from the database you can use `@Table` and `@FetchAll`, which are
 similar to SwiftData's `@Model` and `@Query`:
 

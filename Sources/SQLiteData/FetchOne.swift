@@ -1,3 +1,4 @@
+import GRDB
 import Sharing
 
 #if canImport(Combine)
@@ -18,17 +19,56 @@ import Sharing
 /// See <doc:Fetching> for more information.
 @dynamicMemberLookup
 @propertyWrapper
+#if !canImport(PerceptionCore)
+@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+#endif
 public struct FetchOne<Value: Sendable>: Sendable {
+    enum State {
+        case sharedReader(SharedReader<Value>)
+        case sharedReaderFactory((DatabaseReader?) -> SharedReader<Value>)
+    }
+
+    private let state: _ManagedCriticalState<State>
+
   /// The underlying shared reader powering the property wrapper.
   ///
   /// Shared readers come from the [Sharing](https://github.com/pointfreeco/swift-sharing) package,
   /// a general solution to observing and persisting changes to external data sources.
-  public var sharedReader: SharedReader<Value>
+    public var sharedReader: SharedReader<Value> {
+        state.withCriticalRegion { state in
+            switch state {
+            case let .sharedReader(sharedReader):
+                return sharedReader
+            case let .sharedReaderFactory(factory):
+                let sharedReader = factory(nil)             // Rely solely on @Dependeny and the @TaskLocal
+                state = .sharedReader(sharedReader)
+                return sharedReader
+            }
+        }
+    }
 
   /// A value associated with the underlying query.
   public var wrappedValue: Value {
     sharedReader.wrappedValue
   }
+
+#if canImport(SwiftUI)
+@Environment(\.defaultDatabase) private var defaultDatabase
+#endif
+
+    /// Returns the provided database, or falls through to the globally available database using the following:
+    ///
+    /// 1. @Environment(\.defaultDatabase), if set.
+    /// 2. @Dependency(\.defaultDatabase), if compiled with the `SQLiteDataDependencies` trait
+    /// 3. The `Database.defaultDatabase` @TaskLocal.
+    ///
+    private func databaseOrDefault(_ reader: (any DatabaseReader)?) -> (any DatabaseReader)? {
+        #if canImport(SwiftUI)
+        reader ?? defaultDatabase
+        #else
+        reader
+        #endif
+    }
 
   /// Returns this property wrapper.
   ///
@@ -76,7 +116,7 @@ public struct FetchOne<Value: Sendable>: Sendable {
   public init(
     wrappedValue: sending Value
   ) {
-    sharedReader = SharedReader(value: wrappedValue)
+      state = .init(.sharedReader(SharedReader(value: wrappedValue)))
   }
 
   /// Initializes this property with a query that fetches the first row from a table.
@@ -92,11 +132,13 @@ public struct FetchOne<Value: Sendable>: Sendable {
   where
     Value: StructuredQueriesCore.Table & QueryRepresentable, Value.QueryOutput == Value
   {
-    let statement = Value.all.selectStar().asSelect().limit(1)
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(FetchOneStatementValueRequest(statement: statement), database: database)
-    )
+      state = .init(.sharedReaderFactory {
+          let statement = Value.all.selectStar().asSelect().limit(1)
+          return SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(FetchOneStatementValueRequest(statement: statement), database: database ?? $0)
+          )
+      })
   }
 
   /// Initializes this property with a query that fetches the first row from a table.
@@ -115,10 +157,12 @@ public struct FetchOne<Value: Sendable>: Sendable {
     Value.QueryOutput == Value
   {
     let statement = Value.all.selectStar().asSelect().limit(1)
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(FetchOneStatementOptionalProtocolRequest(statement: statement), database: database)
-    )
+      state = .init(.sharedReaderFactory {
+          SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(FetchOneStatementOptionalProtocolRequest(statement: statement), database: database ?? $0)
+          )
+      })
   }
 
   /// Initializes this property with a query associated with the wrapped value.
@@ -157,10 +201,12 @@ public struct FetchOne<Value: Sendable>: Sendable {
   where
     Value == V.QueryOutput
   {
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(FetchOneStatementValueRequest(statement: statement), database: database)
-    )
+      state = .init(.sharedReaderFactory {
+          SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(FetchOneStatementValueRequest(statement: statement), database: database ?? $0)
+          )
+      })
   }
 
   /// Initializes this property with a query associated with the wrapped value.
@@ -178,10 +224,12 @@ public struct FetchOne<Value: Sendable>: Sendable {
   where
     Value == V.QueryOutput?
   {
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(FetchOneStatementOptionalValueRequest(statement: statement), database: database)
-    )
+      state = .init(.sharedReaderFactory {
+          SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(FetchOneStatementOptionalValueRequest(statement: statement), database: database ?? $0)
+          )
+      })
   }
 
   /// Initializes this property with a query associated with the wrapped value.
@@ -200,10 +248,12 @@ public struct FetchOne<Value: Sendable>: Sendable {
     Value: QueryRepresentable,
     Value == S.QueryValue.QueryOutput
   {
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(FetchOneStatementValueRequest(statement: statement), database: database)
-    )
+      state = .init(.sharedReaderFactory {
+          SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(FetchOneStatementValueRequest(statement: statement), database: database ?? $0)
+          )
+      })
   }
 
   /// Initializes this property with a query associated with an optional value.
@@ -224,11 +274,13 @@ public struct FetchOne<Value: Sendable>: Sendable {
     S.QueryValue == (),
     S.Joins == ()
   {
-    let statement = statement.selectStar().asSelect().limit(1)
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(FetchOneStatementOptionalValueRequest(statement: statement), database: database)
-    )
+      state = .init(.sharedReaderFactory {
+          let statement = statement.selectStar().asSelect().limit(1)
+          return SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(FetchOneStatementOptionalValueRequest(statement: statement), database: database ?? $0)
+          )
+      })
   }
 
   /// Initializes this property with a query associated with an optional value.
@@ -249,13 +301,15 @@ public struct FetchOne<Value: Sendable>: Sendable {
     S.QueryValue: _OptionalProtocol,
     Value == S.QueryValue.QueryOutput
   {
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(
-        FetchOneStatementOptionalProtocolRequest(statement: statement),
-        database: database
-      )
-    )
+      state = .init(.sharedReaderFactory {
+          SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(
+                FetchOneStatementOptionalProtocolRequest(statement: statement),
+                database: database ?? $0
+            )
+          )
+      })
   }
 
   /// Initializes this property with a query associated with an optional value.
@@ -275,10 +329,12 @@ public struct FetchOne<Value: Sendable>: Sendable {
     Value: _OptionalProtocol,
     Value.QueryOutput == Value
   {
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(FetchOneStatementOptionalProtocolRequest(statement: statement), database: database)
-    )
+      state = .init(.sharedReaderFactory {
+          SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(FetchOneStatementOptionalProtocolRequest(statement: statement), database: database ?? $0)
+          )
+      })
   }
 
   /// Replaces the wrapped value with data from the given query.
@@ -314,7 +370,7 @@ public struct FetchOne<Value: Sendable>: Sendable {
     Value == V.QueryOutput
   {
     try await sharedReader.load(
-      .fetch(FetchOneStatementValueRequest(statement: statement), database: database)
+      .fetch(FetchOneStatementValueRequest(statement: statement), database: databaseOrDefault(database))
     )
   }
 
@@ -332,7 +388,7 @@ public struct FetchOne<Value: Sendable>: Sendable {
     Value == V.QueryOutput?
   {
     try await sharedReader.load(
-      .fetch(FetchOneStatementOptionalValueRequest(statement: statement), database: database)
+      .fetch(FetchOneStatementOptionalValueRequest(statement: statement), database: databaseOrDefault(database))
     )
   }
 
@@ -354,7 +410,7 @@ public struct FetchOne<Value: Sendable>: Sendable {
   {
     let statement = statement.selectStar().asSelect().limit(1)
     try await sharedReader.load(
-      .fetch(FetchOneStatementOptionalValueRequest(statement: statement), database: database)
+      .fetch(FetchOneStatementOptionalValueRequest(statement: statement), database: databaseOrDefault(database))
     )
   }
 
@@ -375,7 +431,7 @@ public struct FetchOne<Value: Sendable>: Sendable {
     Value == S.QueryValue.QueryOutput
   {
     try await sharedReader.load(
-      .fetch(FetchOneStatementOptionalProtocolRequest(statement: statement), database: database)
+      .fetch(FetchOneStatementOptionalProtocolRequest(statement: statement), database: databaseOrDefault(database))
     )
   }
 
@@ -395,11 +451,14 @@ public struct FetchOne<Value: Sendable>: Sendable {
     Value.QueryOutput == Value
   {
     try await sharedReader.load(
-      .fetch(FetchOneStatementOptionalProtocolRequest(statement: statement), database: database)
+      .fetch(FetchOneStatementOptionalProtocolRequest(statement: statement), database: databaseOrDefault(database))
     )
   }
 }
 
+#if !canImport(PerceptionCore)
+@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+#endif
 extension FetchOne {
   /// Initializes this property with a query that fetches the first row from a table.
   ///
@@ -417,15 +476,17 @@ extension FetchOne {
   where
     Value: StructuredQueriesCore.Table & QueryRepresentable, Value.QueryOutput == Value
   {
-    let statement = Value.all.selectStar().asSelect().limit(1)
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(
-        FetchOneStatementValueRequest(statement: statement),
-        database: database,
-        scheduler: scheduler
-      )
-    )
+      state = .init(.sharedReaderFactory {
+          let statement = Value.all.selectStar().asSelect().limit(1)
+          return SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(
+                FetchOneStatementValueRequest(statement: statement),
+                database: database ?? $0,
+                scheduler: scheduler
+            )
+          )
+      })
   }
 
   /// Initializes this property with a query that fetches the first row from a table.
@@ -446,15 +507,17 @@ extension FetchOne {
     Value: StructuredQueriesCore.Table,
     Value.QueryOutput == Value
   {
-    let statement = Value.all.selectStar().asSelect().limit(1)
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(
-        FetchOneStatementOptionalProtocolRequest(statement: statement),
-        database: database,
-        scheduler: scheduler
-      )
-    )
+      state = .init(.sharedReaderFactory {
+          let statement = Value.all.selectStar().asSelect().limit(1)
+          return SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(
+                FetchOneStatementOptionalProtocolRequest(statement: statement),
+                database: database ?? $0,
+                scheduler: scheduler
+            )
+          )
+      })
   }
 
   /// Initializes this property with a query associated with the wrapped value.
@@ -499,14 +562,16 @@ extension FetchOne {
   where
     Value == V.QueryOutput
   {
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(
-        FetchOneStatementValueRequest(statement: statement),
-        database: database,
-        scheduler: scheduler
-      )
-    )
+      state = .init(.sharedReaderFactory {
+          SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(
+                FetchOneStatementValueRequest(statement: statement),
+                database: database ?? $0,
+                scheduler: scheduler
+            )
+          )
+      })
   }
 
   /// Initializes this property with a query associated with the wrapped value.
@@ -527,14 +592,16 @@ extension FetchOne {
   where
     Value == V.QueryOutput?
   {
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(
-        FetchOneStatementOptionalValueRequest(statement: statement),
-        database: database,
-        scheduler: scheduler
-      )
-    )
+      state = .init(.sharedReaderFactory {
+          SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(
+                FetchOneStatementOptionalValueRequest(statement: statement),
+                database: database ?? $0,
+                scheduler: scheduler
+            )
+          )
+      })
   }
 
   /// Initializes this property with a query associated with the wrapped value.
@@ -556,14 +623,16 @@ extension FetchOne {
     Value: QueryRepresentable,
     Value == S.QueryValue.QueryOutput
   {
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(
-        FetchOneStatementValueRequest(statement: statement),
-        database: database,
-        scheduler: scheduler
-      )
-    )
+      state = .init(.sharedReaderFactory {
+          SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(
+                FetchOneStatementValueRequest(statement: statement),
+                database: database ?? $0,
+                scheduler: scheduler
+            )
+          )
+      })
   }
 
   /// Initializes this property with a query associated with an optional value.
@@ -587,15 +656,17 @@ extension FetchOne {
     S.QueryValue == (),
     S.Joins == ()
   {
-    let statement = statement.selectStar().asSelect().limit(1)
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(
-        FetchOneStatementOptionalValueRequest(statement: statement),
-        database: database,
-        scheduler: scheduler
-      )
-    )
+      state = .init(.sharedReaderFactory {
+          let statement = statement.selectStar().asSelect().limit(1)
+          return SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(
+                FetchOneStatementOptionalValueRequest(statement: statement),
+                database: database ?? $0,
+                scheduler: scheduler
+            )
+          )
+      })
   }
 
   /// Initializes this property with a query associated with an optional value.
@@ -619,14 +690,16 @@ extension FetchOne {
     S.QueryValue: _OptionalProtocol,
     Value == S.QueryValue.QueryOutput
   {
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(
-        FetchOneStatementOptionalProtocolRequest(statement: statement),
-        database: database,
-        scheduler: scheduler
-      )
-    )
+      state = .init(.sharedReaderFactory {
+          SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(
+                FetchOneStatementOptionalProtocolRequest(statement: statement),
+                database: database ?? $0,
+                scheduler: scheduler
+            )
+          )
+      })
   }
 
   /// Initializes this property with a query associated with an optional value.
@@ -649,14 +722,16 @@ extension FetchOne {
     Value: _OptionalProtocol,
     Value.QueryOutput == Value
   {
-    sharedReader = SharedReader(
-      wrappedValue: wrappedValue,
-      .fetch(
-        FetchOneStatementOptionalProtocolRequest(statement: statement),
-        database: database,
-        scheduler: scheduler
-      )
-    )
+      state = .init(.sharedReaderFactory {
+          SharedReader(
+            wrappedValue: wrappedValue,
+            .fetch(
+                FetchOneStatementOptionalProtocolRequest(statement: statement),
+                database: database ?? $0,
+                scheduler: scheduler
+            )
+          )
+      })
   }
 
   /// Replaces the wrapped value with data from the given query.
@@ -700,7 +775,7 @@ extension FetchOne {
     try await sharedReader.load(
       .fetch(
         FetchOneStatementValueRequest(statement: statement),
-        database: database,
+        database: databaseOrDefault(database),
         scheduler: scheduler
       )
     )
@@ -725,7 +800,7 @@ extension FetchOne {
     try await sharedReader.load(
       .fetch(
         FetchOneStatementOptionalValueRequest(statement: statement),
-        database: database,
+        database: databaseOrDefault(database),
         scheduler: scheduler
       )
     )
@@ -754,7 +829,7 @@ extension FetchOne {
     try await sharedReader.load(
       .fetch(
         FetchOneStatementOptionalValueRequest(statement: statement),
-        database: database,
+        database: databaseOrDefault(database),
         scheduler: scheduler
       )
     )
@@ -782,7 +857,7 @@ extension FetchOne {
     try await sharedReader.load(
       .fetch(
         FetchOneStatementOptionalProtocolRequest(statement: statement),
-        database: database,
+        database: databaseOrDefault(database),
         scheduler: scheduler
       )
     )
@@ -809,19 +884,25 @@ extension FetchOne {
     try await sharedReader.load(
       .fetch(
         FetchOneStatementOptionalProtocolRequest(statement: statement),
-        database: database,
+        database: databaseOrDefault(database),
         scheduler: scheduler
       )
     )
   }
 }
 
+#if !canImport(PerceptionCore)
+@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+#endif
 extension FetchOne: CustomReflectable {
   public var customMirror: Mirror {
     Mirror(reflecting: wrappedValue)
   }
 }
 
+#if !canImport(PerceptionCore)
+@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+#endif
 extension FetchOne: Equatable where Value: Equatable {
   public static func == (lhs: Self, rhs: Self) -> Bool {
     lhs.sharedReader == rhs.sharedReader
@@ -829,8 +910,16 @@ extension FetchOne: Equatable where Value: Equatable {
 }
 
 #if canImport(SwiftUI)
+#if !canImport(PerceptionCore)
+@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+#endif
   extension FetchOne: DynamicProperty {
     public func update() {
+        state.withCriticalRegion { state in
+            if case .sharedReaderFactory(let factory) = state {
+                state = .sharedReader(factory(defaultDatabase))
+            }
+        }
       sharedReader.update()
     }
 

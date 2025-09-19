@@ -1,4 +1,6 @@
-import CustomDump
+#if canImport(CustomDump)
+  import CustomDump
+#endif
 
 @Table("sqlitedata_icloud_recordTypes")
 package struct RecordType: Hashable {
@@ -9,7 +11,7 @@ package struct RecordType: Hashable {
   package let tableInfo: Set<TableInfo>
 }
 
-extension RecordType: CustomDumpReflectable {
+extension RecordType {
   package var customDumpMirror: Mirror {
     Mirror(
       self,
@@ -22,3 +24,7 @@ extension RecordType: CustomDumpReflectable {
     )
   }
 }
+
+#if canImport(CustomDump)
+  extension RecordType: CustomDumpReflectable {}
+#endif

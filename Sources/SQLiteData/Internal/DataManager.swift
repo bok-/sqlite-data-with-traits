@@ -1,5 +1,9 @@
-import Dependencies
+import ConcurrencyExtras
 import Foundation
+
+#if canImport(Dependencies)
+  import Dependencies
+#endif
 
 package protocol DataManager: Sendable {
   func load(_ url: URL) throws -> Data
@@ -44,6 +48,7 @@ package struct InMemoryDataManager: DataManager {
   }
 }
 
+#if canImport(Dependencies)
 private enum DataManagerKey: DependencyKey {
   static var liveValue: any DataManager {
     LiveDataManager()
@@ -59,3 +64,4 @@ extension DependencyValues {
     set { self[DataManagerKey.self] = newValue }
   }
 }
+#endif

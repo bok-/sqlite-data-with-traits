@@ -1,7 +1,10 @@
-import Dependencies
 import Foundation
 
-package struct CurrentTimeGenerator: DependencyKey, Sendable {
+#if canImport(Dependencies)
+  import Dependencies
+#endif
+
+package struct CurrentTimeGenerator: Sendable {
   private var generate: @Sendable () -> Int64
   package var now: Int64 {
     get { self.generate() }
@@ -18,9 +21,13 @@ package struct CurrentTimeGenerator: DependencyKey, Sendable {
   }
 }
 
-extension DependencyValues {
-  package var currentTime: CurrentTimeGenerator {
-    get { self[CurrentTimeGenerator.self] }
-    set { self[CurrentTimeGenerator.self] = newValue }
+#if canImport(Dependencies)
+  extension CurrentTimeGenerator: DependencyKey {}
+
+  extension DependencyValues {
+    package var currentTime: CurrentTimeGenerator {
+      get { self[CurrentTimeGenerator.self] }
+      set { self[CurrentTimeGenerator.self] = newValue }
+    }
   }
-}
+#endif

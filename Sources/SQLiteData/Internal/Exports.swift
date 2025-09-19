@@ -1,4 +1,3 @@
-@_exported import Dependencies
 @_exported import StructuredQueriesSQLite
 
 @_exported import struct GRDB.Configuration
@@ -10,3 +9,7 @@
 @_exported import protocol GRDB.DatabaseReader
 @_exported import protocol GRDB.DatabaseWriter
 @_exported import protocol GRDB.ValueObservationScheduler
+
+#if canImport(Dependencies)
+  @_exported import Dependencies
+#endif

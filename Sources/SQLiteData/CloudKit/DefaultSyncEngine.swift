@@ -1,5 +1,7 @@
 #if canImport(CloudKit)
   import CloudKit
+
+#if canImport(Dependencies)
   import Dependencies
 
   @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
@@ -53,4 +55,14 @@
       try! SyncEngine(for: DatabaseQueue())
     }
   }
+
+#else
+
+@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+public extension SyncEngine {
+    @TaskLocal static var defaultSyncEngine = try! SyncEngine(for: DatabaseQueue())
+}
+
+#endif
+
 #endif

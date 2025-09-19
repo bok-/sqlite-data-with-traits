@@ -1,4 +1,6 @@
-import Dependencies
+#if canImport(Dependencies)
+  import Dependencies
+#endif
 
 package struct UserDatabase {
   package let database: any DatabaseWriter
