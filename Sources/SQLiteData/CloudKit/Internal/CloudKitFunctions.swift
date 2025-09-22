@@ -1,17 +1,17 @@
 #if canImport(CloudKit)
   import CloudKit
-#if canImport(Dependencies)
-import Dependencies
-#endif
+  #if canImport(Dependencies)
+    import Dependencies
+  #endif
   import Foundation
 
   @DatabaseFunction("sqlitedata_icloud_currentTime")
   func currentTime() -> Int64 {
-      #if canImport(Dependencies)
-    @Dependency(\.currentTime.now) var now
-      #else
+    #if canImport(Dependencies)
+      @Dependency(\.currentTime.now) var now
+    #else
       let now = CurrentTimeGenerator.liveValue.now
-      #endif
+    #endif
     return now
   }
 

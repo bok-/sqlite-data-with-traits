@@ -6,53 +6,53 @@ import GRDB
 #endif
 
 #if canImport(SwiftUI)
-import SwiftUI
+  import SwiftUI
 #endif
 
 #if canImport(Dependencies)
 
-/// Prepares a context-sensitive database writer.
-///
-///   * In a live app context (e.g. simulator, device), a database pool is provisioned in the app
-///     container (unless explicitly overridden with the `path` parameter).
-///   * In an Xcode preview context, an in-memory database is provisioned.
-///   * In a test context, a database pool is provisioned at a temporary file.
-///
-/// - Parameters:
-///   - path: A path to the database. If `nil`, a path to a file in the application support
-///     directory will be used.
-///   - configuration: A database configuration.
-/// - Returns: A context-sensitive database writer.
-public func defaultDatabase(
-  path: String? = nil,
-  configuration: Configuration = Configuration()
-) throws -> any DatabaseWriter {
-  let database: any DatabaseWriter
-  @Dependency(\.context) var context
-  switch context {
-  case .live:
-    var defaultPath: String {
-      get throws {
-        let applicationSupportDirectory = try FileManager.default.url(
-          for: .applicationSupportDirectory,
-          in: .userDomainMask,
-          appropriateFor: nil,
-          create: true
-        )
-        return applicationSupportDirectory.appendingPathComponent("SQLiteData.db").absoluteString
+  /// Prepares a context-sensitive database writer.
+  ///
+  ///   * In a live app context (e.g. simulator, device), a database pool is provisioned in the app
+  ///     container (unless explicitly overridden with the `path` parameter).
+  ///   * In an Xcode preview context, an in-memory database is provisioned.
+  ///   * In a test context, a database pool is provisioned at a temporary file.
+  ///
+  /// - Parameters:
+  ///   - path: A path to the database. If `nil`, a path to a file in the application support
+  ///     directory will be used.
+  ///   - configuration: A database configuration.
+  /// - Returns: A context-sensitive database writer.
+  public func defaultDatabase(
+    path: String? = nil,
+    configuration: Configuration = Configuration()
+  ) throws -> any DatabaseWriter {
+    let database: any DatabaseWriter
+    @Dependency(\.context) var context
+    switch context {
+    case .live:
+      var defaultPath: String {
+        get throws {
+          let applicationSupportDirectory = try FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+          )
+          return applicationSupportDirectory.appendingPathComponent("SQLiteData.db").absoluteString
+        }
       }
+      database = try DatabasePool(path: path ?? defaultPath, configuration: configuration)
+    case .preview:
+      database = try DatabaseQueue(configuration: configuration)
+    case .test:
+      database = try DatabasePool(
+        path: "\(NSTemporaryDirectory())\(UUID().uuidString).db",
+        configuration: configuration
+      )
     }
-    database = try DatabasePool(path: path ?? defaultPath, configuration: configuration)
-  case .preview:
-    database = try DatabaseQueue(configuration: configuration)
-  case .test:
-    database = try DatabasePool(
-      path: "\(NSTemporaryDirectory())\(UUID().uuidString).db",
-      configuration: configuration
-    )
+    return database
   }
-  return database
-}
 
   extension DependencyValues {
     /// The default database used by `fetchAll`, `fetchOne`, and `fetch`.
@@ -164,74 +164,73 @@ public func defaultDatabase(
 
 #else
 
-// MARK: - Non-Dependency Databases
+  // MARK: - Non-Dependency Databases
 
-/// Prepares a database writer.
-///
-/// - Parameters:
-///   - path: A path to the database. If `nil`, a path to a file in the application support
-///     directory will be used.
-///   - configuration: A database configuration.
-/// - Returns: A context-sensitive database writer.
-public func defaultDatabase(
-  path: String? = nil,
-  configuration: Configuration = Configuration()
-) throws -> any DatabaseWriter {
+  /// Prepares a database writer.
+  ///
+  /// - Parameters:
+  ///   - path: A path to the database. If `nil`, a path to a file in the application support
+  ///     directory will be used.
+  ///   - configuration: A database configuration.
+  /// - Returns: A context-sensitive database writer.
+  public func defaultDatabase(
+    path: String? = nil,
+    configuration: Configuration = Configuration()
+  ) throws -> any DatabaseWriter {
     var defaultPath: String {
-        get throws {
-            let applicationSupportDirectory = try FileManager.default.url(
-                for: .applicationSupportDirectory,
-                in: .userDomainMask,
-                appropriateFor: nil,
-                create: true
-            )
-            return applicationSupportDirectory.appendingPathComponent("SQLiteData.db").absoluteString
-        }
+      get throws {
+        let applicationSupportDirectory = try FileManager.default.url(
+          for: .applicationSupportDirectory,
+          in: .userDomainMask,
+          appropriateFor: nil,
+          create: true
+        )
+        return applicationSupportDirectory.appendingPathComponent("SQLiteData.db").absoluteString
+      }
     }
     return try DatabasePool(path: path ?? defaultPath, configuration: configuration)
-}
+  }
 
 #endif
 
-
 extension Database {
-    @TaskLocal static var defaultDatabase: DatabaseWriter = {
-        #if canImport(IssueReporting)
-        reportIssue(
-          """
-          A blank, in-memory database is being used. To set the database that is used set \
-          it in your environment if using SwiftUI:
-          
-              ContentView()
-                .environment(\\.defaultDatabase, try! DatabaseQueue(/* ... */))
-          
-          or use the @TaskLocal:
+  @TaskLocal static var defaultDatabase: DatabaseWriter = {
+    #if canImport(IssueReporting)
+      reportIssue(
+        """
+        A blank, in-memory database is being used. To set the database that is used set \
+        it in your environment if using SwiftUI:
 
-              Database.$defaultDatabase.withValue(try DatabaseQueue(/* ... */)) {
-                // ...
-              }
-          """
-        )
-        #endif
-        var configuration = Configuration()
-        #if DEBUG
-          configuration.label = .defaultDatabaseLabel
-        #endif
-        return try! DatabaseQueue(configuration: configuration)
-    }()
+            ContentView()
+              .environment(\\.defaultDatabase, try! DatabaseQueue(/* ... */))
+
+        or use the @TaskLocal:
+
+            Database.$defaultDatabase.withValue(try DatabaseQueue(/* ... */)) {
+              // ...
+            }
+        """
+      )
+    #endif
+    var configuration = Configuration()
+    #if DEBUG
+      configuration.label = .defaultDatabaseLabel
+    #endif
+    return try! DatabaseQueue(configuration: configuration)
+  }()
 }
 
 #if canImport(SwiftUI)
-private enum DefaultDatabaseKey: EnvironmentKey {
+  private enum DefaultDatabaseKey: EnvironmentKey {
     static let defaultValue: (any DatabaseWriter)? = nil
-}
+  }
 
-extension EnvironmentValues {
+  extension EnvironmentValues {
     var defaultDatabase: (any DatabaseWriter)? {
-        get { self[DefaultDatabaseKey.self] }
-        set { self[DefaultDatabaseKey.self] = newValue }
+      get { self[DefaultDatabaseKey.self] }
+      set { self[DefaultDatabaseKey.self] = newValue }
     }
-}
+  }
 #endif
 
 #if DEBUG

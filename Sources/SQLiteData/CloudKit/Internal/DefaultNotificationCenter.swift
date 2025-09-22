@@ -1,5 +1,5 @@
 #if canImport(UIKit) && canImport(Dependencies)
-import Dependencies
+  import Dependencies
   import UIKit
 
   private enum DefaultNotificationCenterKey: DependencyKey {

@@ -69,12 +69,12 @@ struct FetchKey<Value: Sendable>: SharedReaderKey {
     database: (any DatabaseReader)? = nil,
     scheduler: (any ValueObservationScheduler & Hashable)?
   ) {
-      #if canImport(Dependencies)
-    @Dependency(\.defaultDatabase) var defaultDatabase
+    #if canImport(Dependencies)
+      @Dependency(\.defaultDatabase) var defaultDatabase
       self.database = database ?? defaultDatabase
-      #else
+    #else
       self.database = database ?? Database.defaultDatabase
-      #endif
+    #endif
     self.scheduler = scheduler
     self.request = request
     #if DEBUG

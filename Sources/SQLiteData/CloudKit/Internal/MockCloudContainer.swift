@@ -24,11 +24,11 @@ package final class MockCloudContainer: CloudContainer {
     self.sharedCloudDatabase = sharedCloudDatabase
 
     guard let containerIdentifier else { return }
-      #if canImport(Dependencies)
-    @Dependency(\.mockCloudContainers) var mockCloudContainers
-      #else
+    #if canImport(Dependencies)
+      @Dependency(\.mockCloudContainers) var mockCloudContainers
+    #else
       let mockCloudContainers = LockIsolated<[String: MockCloudContainer]>([:])
-      #endif
+    #endif
     mockCloudContainers.withValue { storage in
       storage[containerIdentifier] = self
     }
@@ -84,11 +84,11 @@ package final class MockCloudContainer: CloudContainer {
 
   package static func createContainer(identifier containerIdentifier: String) -> MockCloudContainer
   {
-      #if canImport(Dependencies)
-    @Dependency(\.mockCloudContainers) var mockCloudContainers
-      #else
+    #if canImport(Dependencies)
+      @Dependency(\.mockCloudContainers) var mockCloudContainers
+    #else
       let mockCloudContainers = LockIsolated<[String: MockCloudContainer]>([:])
-      #endif
+    #endif
     return mockCloudContainers.withValue { storage in
       let container: MockCloudContainer
       if let existingContainer = storage[containerIdentifier] {
@@ -129,30 +129,30 @@ package final class MockCloudContainer: CloudContainer {
 }
 
 #if canImport(CustomDump)
-@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
-extension MockCloudContainer: CustomDumpReflectable {}
+  @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+  extension MockCloudContainer: CustomDumpReflectable {}
 #endif
 
 #if canImport(Dependencies)
-@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
-private enum MockCloudContainersKey: DependencyKey {
-  static var liveValue: LockIsolated<[String: MockCloudContainer]> {
-    LockIsolated<[String: MockCloudContainer]>([:])
-  }
-  static var testValue: LockIsolated<[String: MockCloudContainer]> {
-    LockIsolated<[String: MockCloudContainer]>([:])
-  }
-}
-
-extension DependencyValues {
   @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
-  fileprivate var mockCloudContainers: LockIsolated<[String: MockCloudContainer]> {
-    get {
-      self[MockCloudContainersKey.self]
+  private enum MockCloudContainersKey: DependencyKey {
+    static var liveValue: LockIsolated<[String: MockCloudContainer]> {
+      LockIsolated<[String: MockCloudContainer]>([:])
     }
-    set {
-      self[MockCloudContainersKey.self] = newValue
+    static var testValue: LockIsolated<[String: MockCloudContainer]> {
+      LockIsolated<[String: MockCloudContainer]>([:])
     }
   }
-}
+
+  extension DependencyValues {
+    @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+    fileprivate var mockCloudContainers: LockIsolated<[String: MockCloudContainer]> {
+      get {
+        self[MockCloudContainersKey.self]
+      }
+      set {
+        self[MockCloudContainersKey.self] = newValue
+      }
+    }
+  }
 #endif

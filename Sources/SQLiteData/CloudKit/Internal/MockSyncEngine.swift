@@ -107,16 +107,16 @@ package final class MockSyncEngine: SyncEngineProtocol {
     column: UInt = #column
   ) {
     _fetchChangesScopes.withValue {
-        #if canImport(IssueReporting)
-      expectNoDifference(
-        scopes,
-        $0,
-        fileID: fileID,
-        filePath: filePath,
-        line: line,
-        column: column
-      )
-        #endif
+      #if canImport(IssueReporting)
+        expectNoDifference(
+          scopes,
+          $0,
+          fileID: fileID,
+          filePath: filePath,
+          line: line,
+          column: column
+        )
+      #endif
       $0.removeAll()
     }
   }
@@ -129,16 +129,16 @@ package final class MockSyncEngine: SyncEngineProtocol {
     column: UInt = #column
   ) {
     _acceptedShareMetadata.withValue {
-#if canImport(IssueReporting)
-      expectNoDifference(
-        sharedMetadata,
-        $0,
-        fileID: fileID,
-        filePath: filePath,
-        line: line,
-        column: column
-      )
-        #endif
+      #if canImport(IssueReporting)
+        expectNoDifference(
+          sharedMetadata,
+          $0,
+          fileID: fileID,
+          filePath: filePath,
+          line: line,
+          column: column
+        )
+      #endif
       $0.removeAll()
     }
   }
@@ -181,16 +181,16 @@ package final class MockSyncEngineState: CKSyncEngineStateProtocol {
     column: UInt = #column
   ) {
     _pendingRecordZoneChanges.withValue {
-#if canImport(IssueReporting)
-      expectNoDifference(
-        Set(changes),
-        Set($0),
-        fileID: fileID,
-        filePath: filePath,
-        line: line,
-        column: column
-      )
-        #endif
+      #if canImport(IssueReporting)
+        expectNoDifference(
+          Set(changes),
+          Set($0),
+          fileID: fileID,
+          filePath: filePath,
+          line: line,
+          column: column
+        )
+      #endif
       $0.removeAll()
     }
   }
@@ -203,16 +203,16 @@ package final class MockSyncEngineState: CKSyncEngineStateProtocol {
     column: UInt = #column
   ) {
     _pendingDatabaseChanges.withValue {
-#if canImport(IssueReporting)
-      expectNoDifference(
-        Set(changes),
-        Set($0),
-        fileID: fileID,
-        filePath: filePath,
-        line: line,
-        column: column
-      )
-        #endif
+      #if canImport(IssueReporting)
+        expectNoDifference(
+          Set(changes),
+          Set($0),
+          fileID: fileID,
+          filePath: filePath,
+          line: line,
+          column: column
+        )
+      #endif
       $0.removeAll()
     }
   }
@@ -276,8 +276,8 @@ package final class MockSyncEngineState: CKSyncEngineStateProtocol {
 }
 
 #if canImport(CustomDump)
-@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
-extension MockSyncEngineState: CustomDumpReflectable {}
+  @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+  extension MockSyncEngineState: CustomDumpReflectable {}
 #endif
 
 @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
@@ -330,30 +330,30 @@ extension SyncEngine {
     let syncEngine = syncEngine(for: scope)
     guard !syncEngine.state.pendingRecordZoneChanges.isEmpty
     else {
-#if canImport(IssueReporting)
-      reportIssue(
-        "Processing empty set of record zone changes.",
-        fileID: fileID,
-        filePath: filePath,
-        line: line,
-        column: column
-      )
-        #endif
+      #if canImport(IssueReporting)
+        reportIssue(
+          "Processing empty set of record zone changes.",
+          fileID: fileID,
+          filePath: filePath,
+          line: line,
+          column: column
+        )
+      #endif
       return
     }
     guard try await container.accountStatus() == .available
     else {
-#if canImport(IssueReporting)
-      reportIssue(
-        """
-        User must be logged in to process pending changes.
-        """,
-        fileID: fileID,
-        filePath: filePath,
-        line: line,
-        column: column
-      )
-        #endif
+      #if canImport(IssueReporting)
+        reportIssue(
+          """
+          User must be logged in to process pending changes.
+          """,
+          fileID: fileID,
+          filePath: filePath,
+          line: line,
+          column: column
+        )
+      #endif
       return
     }
 

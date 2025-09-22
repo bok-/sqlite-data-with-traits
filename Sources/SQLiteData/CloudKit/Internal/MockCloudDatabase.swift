@@ -15,11 +15,11 @@ package final class MockCloudDatabase: CloudDatabase {
   package let databaseScope: CKDatabase.Scope
   let _container = IsolatedWeakVar<MockCloudContainer>()
 
-    #if canImport(Dependencies)
-  let dataManager = Dependency(\.dataManager)
-    #else
+  #if canImport(Dependencies)
+    let dataManager = Dependency(\.dataManager)
+  #else
     let dataManager = LiveDataManager()
-    #endif
+  #endif
 
   struct AssetID: Hashable {
     let recordID: CKRecord.ID
@@ -54,11 +54,11 @@ package final class MockCloudDatabase: CloudDatabase {
         guard let assetData = assets[AssetID(recordID: record.recordID, key: key)]
         else { continue }
         let url = URL(filePath: UUID().uuidString.lowercased())
-          #if canImport(Dependencies)
-        try dataManager.wrappedValue.save(assetData, to: url)
-          #else
+        #if canImport(Dependencies)
+          try dataManager.wrappedValue.save(assetData, to: url)
+        #else
           try dataManager.save(assetData, to: url)
-          #endif
+        #endif
         record[key] = CKAsset(fileURL: url)
       }
     }
@@ -108,14 +108,14 @@ package final class MockCloudDatabase: CloudDatabase {
             let shareWasPreviouslySaved = storage[share.recordID.zoneID]?[share.recordID] != nil
             guard shareWasPreviouslySaved || isSavingRootRecord
             else {
-                #if canImport(IssueReporting)
-              reportIssue(
-                """
-                An added share is being saved without its rootRecord being saved in the same \
-                operation.
-                """
-              )
-                #endif
+              #if canImport(IssueReporting)
+                reportIssue(
+                  """
+                  An added share is being saved without its rootRecord being saved in the same \
+                  operation.
+                  """
+                )
+              #endif
               saveResults[recordToSave.recordID] = .failure(CKError(.invalidArguments))
               continue
             }
@@ -176,13 +176,14 @@ package final class MockCloudDatabase: CloudDatabase {
               for key in copy.allKeys() {
                 guard let assetURL = (copy[key] as? CKAsset)?.fileURL
                 else { continue }
-                  #if canImport(Dependencies)
-                assets[AssetID(recordID: copy.recordID, key: key)] = try? dataManager.wrappedValue
-                  .load(assetURL)
-                  #else
-                  assets[AssetID(recordID: copy.recordID, key: key)] = try? dataManager
+                #if canImport(Dependencies)
+                  assets[AssetID(recordID: copy.recordID, key: key)] = try? dataManager.wrappedValue
                     .load(assetURL)
-                  #endif
+                #else
+                  assets[AssetID(recordID: copy.recordID, key: key)] =
+                    try? dataManager
+                    .load(assetURL)
+                #endif
               }
             }
 
@@ -310,24 +311,24 @@ package final class MockCloudDatabase: CloudDatabase {
 }
 
 #if canImport(CustomDump)
-@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
-extension MockCloudDatabase: CustomDumpReflectable {
-  package var customDumpMirror: Mirror {
-    Mirror(
-      self,
-      children: [
-        "databaseScope": databaseScope,
-        "storage": storage
-          .value
-          .flatMap { _, value in value.values }
-          .sorted {
-            ($0.recordType, $0.recordID.recordName) < ($1.recordType, $1.recordID.recordName)
-          },
-      ],
-      displayStyle: .struct
-    )
+  @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+  extension MockCloudDatabase: CustomDumpReflectable {
+    package var customDumpMirror: Mirror {
+      Mirror(
+        self,
+        children: [
+          "databaseScope": databaseScope,
+          "storage": storage
+            .value
+            .flatMap { _, value in value.values }
+            .sorted {
+              ($0.recordType, $0.recordID.recordName) < ($1.recordType, $1.recordID.recordName)
+            },
+        ],
+        displayStyle: .struct
+      )
+    }
   }
-}
 #endif
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 9, *)

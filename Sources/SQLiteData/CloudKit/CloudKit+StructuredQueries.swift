@@ -4,9 +4,9 @@
   #if canImport(CustomDump)
     import CustomDump
   #endif
-#if canImport(IssueReporting)
-import IssueReporting
-#endif
+  #if canImport(IssueReporting)
+    import IssueReporting
+  #endif
   import StructuredQueriesCore
 
   extension _CKRecord where Self == CKRecord {
@@ -30,11 +30,11 @@ import IssueReporting
     public var queryBinding: QueryBinding {
       let archiver = NSKeyedArchiver(requiringSecureCoding: true)
       queryOutput.encodeSystemFields(with: archiver)
-#if canImport(IssueReporting)
-      if isTesting {
-        archiver.encode(queryOutput._recordChangeTag, forKey: "_recordChangeTag")
-      }
-#endif
+      #if canImport(IssueReporting)
+        if isTesting {
+          archiver.encode(queryOutput._recordChangeTag, forKey: "_recordChangeTag")
+        }
+      #endif
       return archiver.encodedData.queryBinding
     }
 
@@ -57,13 +57,13 @@ import IssueReporting
       guard let queryOutput = Record(coder: coder) else {
         throw DecodingError()
       }
-#if canImport(IssueReporting)
-      if isTesting {
-        queryOutput._recordChangeTag =
-          coder
-          .decodeObject(of: NSString.self, forKey: "_recordChangeTag") as? String
-      }
-        #endif
+      #if canImport(IssueReporting)
+        if isTesting {
+          queryOutput._recordChangeTag =
+            coder
+            .decodeObject(of: NSString.self, forKey: "_recordChangeTag") as? String
+        }
+      #endif
       self.init(queryOutput: queryOutput)
     }
 
@@ -76,11 +76,11 @@ import IssueReporting
     public var queryBinding: QueryBinding {
       let archiver = NSKeyedArchiver(requiringSecureCoding: true)
       queryOutput.encode(with: archiver)
-#if canImport(IssueReporting)
-      if isTesting {
-        archiver.encode(queryOutput._recordChangeTag, forKey: "_recordChangeTag")
-      }
-        #endif
+      #if canImport(IssueReporting)
+        if isTesting {
+          archiver.encode(queryOutput._recordChangeTag, forKey: "_recordChangeTag")
+        }
+      #endif
       return archiver.encodedData.queryBinding
     }
 
@@ -103,13 +103,13 @@ import IssueReporting
       guard let queryOutput = Record(coder: coder) else {
         throw DecodingError()
       }
-#if canImport(IssueReporting)
-      if isTesting {
-        queryOutput._recordChangeTag =
-          coder
-          .decodeObject(of: NSString.self, forKey: "_recordChangeTag") as? String
-      }
-        #endif
+      #if canImport(IssueReporting)
+        if isTesting {
+          queryOutput._recordChangeTag =
+            coder
+            .decodeObject(of: NSString.self, forKey: "_recordChangeTag") as? String
+        }
+      #endif
       self.init(queryOutput: queryOutput)
     }
 
@@ -161,11 +161,11 @@ import IssueReporting
   @available(macOS 13, iOS 16, tvOS 16, watchOS 9, *)
   extension URL {
     init(hash data: some DataProtocol) {
-        #if canImport(Dependencies)
-      @Dependency(\.dataManager) var dataManager
-        #else
+      #if canImport(Dependencies)
+        @Dependency(\.dataManager) var dataManager
+      #else
         let dataManager = LiveDataManager()
-        #endif
+      #endif
       let hash = SHA256.hash(data: data).compactMap { String(format: "%02hhx", $0) }.joined()
       self = dataManager.temporaryDirectory.appendingPathComponent(hash)
     }
@@ -197,11 +197,11 @@ import IssueReporting
       forKey key: CKRecord.FieldKey,
       at userModificationTime: Int64
     ) -> Bool {
-#if canImport(Dependencies)
-      @Dependency(\.dataManager) var dataManager
-        #else
+      #if canImport(Dependencies)
+        @Dependency(\.dataManager) var dataManager
+      #else
         let dataManager = LiveDataManager()
-        #endif
+      #endif
 
       guard encryptedValues[at: key] <= userModificationTime
       else {
@@ -211,13 +211,13 @@ import IssueReporting
       let asset = CKAsset(fileURL: URL(hash: newValue))
       guard let fileURL = asset.fileURL, (self[key] as? CKAsset)?.fileURL != fileURL
       else { return false }
-#if canImport(IssueReporting)
-withErrorReporting(.sqliteDataCloudKitFailure) {
-try dataManager.save(Data(newValue), to: fileURL)
-}
-#else
-try? dataManager.save(Data(newValue), to: fileURL)
-#endif
+      #if canImport(IssueReporting)
+        withErrorReporting(.sqliteDataCloudKitFailure) {
+          try dataManager.save(Data(newValue), to: fileURL)
+        }
+      #else
+        try? dataManager.save(Data(newValue), to: fileURL)
+      #endif
       self[key] = asset
       encryptedValues[at: key] = userModificationTime
       self.userModificationTime = userModificationTime
@@ -277,9 +277,9 @@ try? dataManager.save(Data(newValue), to: fileURL)
               at: userModificationTime
             )
           case .invalid(let error):
-              #if canImport(IssueReporting)
-            reportIssue(error)
-              #endif
+            #if canImport(IssueReporting)
+              reportIssue(error)
+            #endif
           }
         }
         open(column)
@@ -331,9 +331,9 @@ try? dataManager.save(Data(newValue), to: fileURL)
             case .uuid(let value):
               return other.encryptedValues[key] != value.uuidString.lowercased()
             case .invalid(let error):
-#if canImport(IssueReporting)
-reportIssue(error)
-#endif
+              #if canImport(IssueReporting)
+                reportIssue(error)
+              #endif
               return false
             }
           }

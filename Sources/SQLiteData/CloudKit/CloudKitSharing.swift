@@ -1,12 +1,12 @@
 #if canImport(CloudKit)
   import CloudKit
-import ConcurrencyExtras
+  import ConcurrencyExtras
   #if canImport(Dependencies)
     import Dependencies
   #endif
-#if canImport(IssueReporting)
-import IssueReporting
-#endif
+  #if canImport(IssueReporting)
+    import IssueReporting
+  #endif
   import SwiftUI
 
   #if canImport(UIKit)
@@ -187,12 +187,12 @@ import IssueReporting
       }
       guard let share
       else {
-          #if canImport(issueReporting)
-        reportIssue(
-          """
-          No share found associated with record.
-          """)
-          #endif
+        #if canImport(issueReporting)
+          reportIssue(
+            """
+            No share found associated with record.
+            """)
+        #endif
         return
       }
 
@@ -230,11 +230,11 @@ import IssueReporting
         didFinish: @escaping (Result<Void, Error>) -> Void = { _ in },
         didStopSharing: @escaping () -> Void = {},
         syncEngine: SyncEngine = {
-            #if canImport(Dependencies)
-          @Dependency(\.defaultSyncEngine) var defaultSyncEngine
-            #else
+          #if canImport(Dependencies)
+            @Dependency(\.defaultSyncEngine) var defaultSyncEngine
+          #else
             let defaultSyncEngine = SyncEngine.defaultSyncEngine
-            #endif
+          #endif
           return defaultSyncEngine
         }()
       ) {
@@ -303,13 +303,13 @@ import IssueReporting
 
       public func cloudSharingControllerDidStopSharing(_ csc: UICloudSharingController) {
         Task {
-            #if canImport(IssueReporting)
-          await withErrorReporting(.sqliteDataCloudKitFailure) {
-            try await syncEngine.deleteShare(shareRecordID: share.recordID)
-          }
-            #else
+          #if canImport(IssueReporting)
+            await withErrorReporting(.sqliteDataCloudKitFailure) {
+              try await syncEngine.deleteShare(shareRecordID: share.recordID)
+            }
+          #else
             try? await syncEngine.deleteShare(shareRecordID: share.recordID)
-            #endif
+          #endif
         }
         didStopSharing()
       }

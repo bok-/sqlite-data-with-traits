@@ -49,19 +49,19 @@ package struct InMemoryDataManager: DataManager {
 }
 
 #if canImport(Dependencies)
-private enum DataManagerKey: DependencyKey {
-  static var liveValue: any DataManager {
-    LiveDataManager()
+  private enum DataManagerKey: DependencyKey {
+    static var liveValue: any DataManager {
+      LiveDataManager()
+    }
+    static var testValue: any DataManager {
+      InMemoryDataManager()
+    }
   }
-  static var testValue: any DataManager {
-    InMemoryDataManager()
-  }
-}
 
-extension DependencyValues {
-  package var dataManager: DataManager {
-    get { self[DataManagerKey.self] }
-    set { self[DataManagerKey.self] = newValue }
+  extension DependencyValues {
+    package var dataManager: DataManager {
+      get { self[DataManagerKey.self] }
+      set { self[DataManagerKey.self] = newValue }
+    }
   }
-}
 #endif

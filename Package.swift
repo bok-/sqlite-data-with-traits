@@ -60,7 +60,8 @@ let package = Package(
       traits: [
         .trait(name: "SharingCustomDump", condition: .when(traits: ["SQLiteDataCustomDump"])),
         .trait(name: "SharingDependencies", condition: .when(traits: ["SQLiteDataDependencies"])),
-        .trait(name: "SharingIssueReporting", condition: .when(traits: ["SQLiteDataIssueReporting"])),
+        .trait(
+          name: "SharingIssueReporting", condition: .when(traits: ["SQLiteDataIssueReporting"])),
         .trait(name: "SharingPerception", condition: .when(traits: ["SQLiteDataPerception"])),
       ]
     ),
@@ -68,7 +69,8 @@ let package = Package(
       url: "https://github.com/bok-/swift-snapshot-testing-with-traits",
       from: "1.18.7+traits",
       traits: [
-        .trait(name: "SnapshotTestingCustomDump", condition: .when(traits: ["SQLiteDataCustomDump"]))
+        .trait(
+          name: "SnapshotTestingCustomDump", condition: .when(traits: ["SQLiteDataCustomDump"]))
       ]
     ),
     .package(
@@ -76,10 +78,17 @@ let package = Package(
       from: "0.20.0+traits",
       traits: [
         .trait(name: "StructuredQueriesTagged", condition: .when(traits: ["SQLiteDataTagged"])),
-        .trait(name: "StructuredQueriesCustomDump", condition: .when(traits: ["SQLiteDataCustomDump"])),
-        .trait(name: "StructuredQueriesDependencies", condition: .when(traits: ["SQLiteDataDependencies"])),
-        .trait(name: "StructuredQueriesSnapshotTesting", condition: .when(traits: ["SQLiteDataSnapshotTesting"])),
-        .trait(name: "StructuredQueriesIssueReporting", condition: .when(traits: ["SQLiteDataIssueReporting"])),
+        .trait(
+          name: "StructuredQueriesCustomDump", condition: .when(traits: ["SQLiteDataCustomDump"])),
+        .trait(
+          name: "StructuredQueriesDependencies",
+          condition: .when(traits: ["SQLiteDataDependencies"])),
+        .trait(
+          name: "StructuredQueriesSnapshotTesting",
+          condition: .when(traits: ["SQLiteDataSnapshotTesting"])),
+        .trait(
+          name: "StructuredQueriesIssueReporting",
+          condition: .when(traits: ["SQLiteDataIssueReporting"])),
       ]
     ),
     .package(url: "https://github.com/pointfreeco/swift-tagged", from: "0.10.0"),
@@ -90,23 +99,36 @@ let package = Package(
       name: "SQLiteData",
       dependencies: [
         .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
-        .product(name: "Dependencies", package: "swift-dependencies", condition: .when(traits: ["SQLiteDataDependencies"])),
+        .product(
+          name: "Dependencies", package: "swift-dependencies",
+          condition: .when(traits: ["SQLiteDataDependencies"])),
         .product(name: "GRDB", package: "GRDB.swift"),
-        .product(name: "IssueReporting", package: "xctest-dynamic-overlay", condition: .when(traits: ["SQLiteDataIssueReporting"])),
+        .product(
+          name: "IssueReporting", package: "xctest-dynamic-overlay",
+          condition: .when(traits: ["SQLiteDataIssueReporting"])),
         .product(name: "OrderedCollections", package: "swift-collections"),
-        .product(name: "PerceptionCore", package: "swift-perception", condition: .when(traits: ["SQLiteDataPerception"])),
+        .product(
+          name: "PerceptionCore", package: "swift-perception",
+          condition: .when(traits: ["SQLiteDataPerception"])),
         .product(name: "Sharing", package: "swift-sharing-with-traits"),
         .product(name: "StructuredQueriesSQLite", package: "swift-structured-queries-with-traits"),
-        .product(name: "Tagged", package: "swift-tagged", condition: .when(traits: ["SQLiteDataTagged"])),
+        .product(
+          name: "Tagged", package: "swift-tagged", condition: .when(traits: ["SQLiteDataTagged"])),
       ]
     ),
     .target(
       name: "SQLiteDataTestSupport",
       dependencies: [
         "SQLiteData",
-        .product(name: "CustomDump", package: "swift-custom-dump", condition: .when(traits: ["SQLiteDataCustomDump"])),
-        .product(name: "InlineSnapshotTesting", package: "swift-snapshot-testing-with-traits", condition: .when(traits: ["SQLiteDataSnapshotTesting"])),
-        .product(name: "StructuredQueriesTestSupport", package: "swift-structured-queries-with-traits", condition: .when(traits: ["SQLiteDataSnapshotTesting"])),
+        .product(
+          name: "CustomDump", package: "swift-custom-dump",
+          condition: .when(traits: ["SQLiteDataCustomDump"])),
+        .product(
+          name: "InlineSnapshotTesting", package: "swift-snapshot-testing-with-traits",
+          condition: .when(traits: ["SQLiteDataSnapshotTesting"])),
+        .product(
+          name: "StructuredQueriesTestSupport", package: "swift-structured-queries-with-traits",
+          condition: .when(traits: ["SQLiteDataSnapshotTesting"])),
       ]
     ),
     .testTarget(
@@ -114,9 +136,15 @@ let package = Package(
       dependencies: [
         "SQLiteData",
         "SQLiteDataTestSupport",
-        .product(name: "DependenciesTestSupport", package: "swift-dependencies", condition: .when(traits: ["SQLiteDataDependencies"])),
-        .product(name: "InlineSnapshotTesting", package: "swift-snapshot-testing-with-traits", condition: .when(traits: ["SQLiteDataSnapshotTesting"])),
-        .product(name: "SnapshotTestingCustomDump", package: "swift-snapshot-testing-with-traits", condition: .when(traits: ["SQLiteDataCustomDump"])),
+        .product(
+          name: "DependenciesTestSupport", package: "swift-dependencies",
+          condition: .when(traits: ["SQLiteDataDependencies"])),
+        .product(
+          name: "InlineSnapshotTesting", package: "swift-snapshot-testing-with-traits",
+          condition: .when(traits: ["SQLiteDataSnapshotTesting"])),
+        .product(
+          name: "SnapshotTestingCustomDump", package: "swift-snapshot-testing-with-traits",
+          condition: .when(traits: ["SQLiteDataCustomDump"])),
         .product(name: "StructuredQueries", package: "swift-structured-queries-with-traits"),
       ]
     ),

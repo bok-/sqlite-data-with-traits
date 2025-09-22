@@ -20,55 +20,55 @@ import Sharing
 @dynamicMemberLookup
 @propertyWrapper
 #if !canImport(PerceptionCore)
-@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+  @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
 #endif
 public struct FetchAll<Element: Sendable>: Sendable {
-    enum State {
-        case sharedReader(SharedReader<[Element]>)
-        case sharedReaderFactory((DatabaseReader?) -> SharedReader<[Element]>)
-    }
+  enum State {
+    case sharedReader(SharedReader<[Element]>)
+    case sharedReaderFactory((DatabaseReader?) -> SharedReader<[Element]>)
+  }
 
-    private let state: _ManagedCriticalState<State>
+  private let state: _ManagedCriticalState<State>
 
-    /// The underlying shared reader powering the property wrapper.
+  /// The underlying shared reader powering the property wrapper.
   ///
   /// Shared readers come from the [Sharing](https://github.com/pointfreeco/swift-sharing) package,
   /// a general solution to observing and persisting changes to external data sources.
-    public var sharedReader: SharedReader<[Element]> {
-        state.withCriticalRegion { state in
-            switch state {
-            case let .sharedReader(sharedReader):
-                return sharedReader
-            case let .sharedReaderFactory(factory):
-                let sharedReader = factory(nil)             // Rely solely on @Dependeny and the @TaskLocal
-                state = .sharedReader(sharedReader)
-                return sharedReader
-            }
-        }
+  public var sharedReader: SharedReader<[Element]> {
+    state.withCriticalRegion { state in
+      switch state {
+      case .sharedReader(let sharedReader):
+        return sharedReader
+      case .sharedReaderFactory(let factory):
+        let sharedReader = factory(nil)  // Rely solely on @Dependeny and the @TaskLocal
+        state = .sharedReader(sharedReader)
+        return sharedReader
+      }
     }
+  }
 
   /// A collection of data associated with the underlying query.
   public var wrappedValue: [Element] {
     sharedReader.wrappedValue
   }
 
-    #if canImport(SwiftUI)
+  #if canImport(SwiftUI)
     @Environment(\.defaultDatabase) private var defaultDatabase
-    #endif
+  #endif
 
-    /// Returns the provided database, or falls through to the globally available database using the following:
-    ///
-    /// 1. @Environment(\.defaultDatabase), if set.
-    /// 2. @Dependency(\.defaultDatabase), if compiled with the `SQLiteDataDependencies` trait
-    /// 3. The `Database.defaultDatabase` @TaskLocal.
-    ///
-    private func databaseOrDefault(_ reader: (any DatabaseReader)?) -> (any DatabaseReader)? {
-        #if canImport(SwiftUI)
-        reader ?? defaultDatabase
-        #else
-        reader
-        #endif
-    }
+  /// Returns the provided database, or falls through to the globally available database using the following:
+  ///
+  /// 1. @Environment(\.defaultDatabase), if set.
+  /// 2. @Dependency(\.defaultDatabase), if compiled with the `SQLiteDataDependencies` trait
+  /// 3. The `Database.defaultDatabase` @TaskLocal.
+  ///
+  private func databaseOrDefault(_ reader: (any DatabaseReader)?) -> (any DatabaseReader)? {
+    #if canImport(SwiftUI)
+      reader ?? defaultDatabase
+    #else
+      reader
+    #endif
+  }
 
   /// Returns this property wrapper.
   ///
@@ -129,7 +129,7 @@ public struct FetchAll<Element: Sendable>: Sendable {
   /// Initializes this property with a default value.
   @_disfavoredOverload
   public init(wrappedValue: [Element] = []) {
-      state = .init(.sharedReader(SharedReader(value: wrappedValue)))
+    state = .init(.sharedReader(SharedReader(value: wrappedValue)))
   }
 
   /// Initializes this property with a query associated with the wrapped value.
@@ -170,14 +170,15 @@ public struct FetchAll<Element: Sendable>: Sendable {
     Element == V.QueryOutput,
     V.QueryOutput: Sendable
   {
-      state = .init(.sharedReaderFactory {
-          SharedReader(
-            wrappedValue: wrappedValue,
-            .fetch(
-                FetchAllStatementValueRequest(statement: statement),
-                database: database ?? $0
-            )
+    state = .init(
+      .sharedReaderFactory {
+        SharedReader(
+          wrappedValue: wrappedValue,
+          .fetch(
+            FetchAllStatementValueRequest(statement: statement),
+            database: database ?? $0
           )
+        )
       })
   }
 
@@ -197,14 +198,15 @@ public struct FetchAll<Element: Sendable>: Sendable {
     Element: QueryRepresentable,
     Element == S.QueryValue.QueryOutput
   {
-      state = .init(.sharedReaderFactory {
-          SharedReader(
-            wrappedValue: wrappedValue,
-            .fetch(
-                FetchAllStatementValueRequest(statement: statement),
-                database: database ?? $0
-            )
+    state = .init(
+      .sharedReaderFactory {
+        SharedReader(
+          wrappedValue: wrappedValue,
+          .fetch(
+            FetchAllStatementValueRequest(statement: statement),
+            database: database ?? $0
           )
+        )
       })
   }
 
@@ -252,7 +254,7 @@ public struct FetchAll<Element: Sendable>: Sendable {
 }
 
 #if !canImport(PerceptionCore)
-@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+  @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
 #endif
 extension FetchAll {
   /// Initializes this property with a query that fetches every row from a table.
@@ -317,15 +319,16 @@ extension FetchAll {
     Element == V.QueryOutput,
     V.QueryOutput: Sendable
   {
-      state = .init(.sharedReaderFactory {
-          SharedReader(
-            wrappedValue: wrappedValue,
-            .fetch(
-                FetchAllStatementValueRequest(statement: statement),
-                database: database ?? $0,
-                scheduler: scheduler
-            )
+    state = .init(
+      .sharedReaderFactory {
+        SharedReader(
+          wrappedValue: wrappedValue,
+          .fetch(
+            FetchAllStatementValueRequest(statement: statement),
+            database: database ?? $0,
+            scheduler: scheduler
           )
+        )
       })
   }
 
@@ -348,15 +351,16 @@ extension FetchAll {
     Element: QueryRepresentable,
     Element == S.QueryValue.QueryOutput
   {
-      state = .init(.sharedReaderFactory {
-          SharedReader(
-            wrappedValue: wrappedValue,
-            .fetch(
-                FetchAllStatementValueRequest(statement: statement),
-                database: database ?? $0,
-                scheduler: scheduler
-            )
+    state = .init(
+      .sharedReaderFactory {
+        SharedReader(
+          wrappedValue: wrappedValue,
+          .fetch(
+            FetchAllStatementValueRequest(statement: statement),
+            database: database ?? $0,
+            scheduler: scheduler
           )
+        )
       })
   }
 
@@ -411,7 +415,7 @@ extension FetchAll {
 }
 
 #if !canImport(PerceptionCore)
-@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+  @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
 #endif
 extension FetchAll: CustomReflectable {
   public var customMirror: Mirror {
@@ -420,7 +424,7 @@ extension FetchAll: CustomReflectable {
 }
 
 #if !canImport(PerceptionCore)
-@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+  @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
 #endif
 extension FetchAll: Equatable where Element: Equatable {
   public static func == (lhs: Self, rhs: Self) -> Bool {
@@ -429,16 +433,16 @@ extension FetchAll: Equatable where Element: Equatable {
 }
 
 #if canImport(SwiftUI)
-#if !canImport(PerceptionCore)
-@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
-#endif
+  #if !canImport(PerceptionCore)
+    @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+  #endif
   extension FetchAll: DynamicProperty {
     public func update() {
-        state.withCriticalRegion { state in
-            if case .sharedReaderFactory(let factory) = state {
-                state = .sharedReader(factory(defaultDatabase))
-            }
+      state.withCriticalRegion { state in
+        if case .sharedReaderFactory(let factory) = state {
+          state = .sharedReader(factory(defaultDatabase))
         }
+      }
       sharedReader.update()
     }
 
