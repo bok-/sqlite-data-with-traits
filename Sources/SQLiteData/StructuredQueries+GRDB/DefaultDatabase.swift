@@ -226,7 +226,7 @@ extension Database {
   }
 
   extension EnvironmentValues {
-    var defaultDatabase: (any DatabaseWriter)? {
+    public var defaultDatabase: (any DatabaseWriter)? {
       get { self[DefaultDatabaseKey.self] }
       set { self[DefaultDatabaseKey.self] = newValue }
     }
