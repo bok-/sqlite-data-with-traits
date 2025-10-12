@@ -3,7 +3,7 @@ import SwiftUI
 
 struct ObservableModelDemo: SwiftUICaseStudy {
   let readMe = """
-    This demonstrates how to use the `@FetchAll` and `@FetchOne` tools in an @Observable model. \
+    This demonstrates how to use the `@FetchAll` and `@FetchOne` tools in an `@Observable` model. \
     In SwiftUI, the `@Query` macro only works when installed directly in a SwiftUI view, and \
     cannot be used outside of views.
 
@@ -65,8 +65,10 @@ private class Model {
         as: UTF8.self
       )
       try await database.write { db in
-        try Fact.insert(Fact.Draft(body: fact))
-          .execute(db)
+        try Fact.insert {
+          Fact.Draft(body: fact)
+        }
+        .execute(db)
       }
     }
   }

@@ -169,6 +169,18 @@ public struct FetchOne<Value: Sendable>: Sendable {
       })
   }
 
+  /// Initializes this property with a wrapped value.
+  ///
+  /// - Parameter wrappedValue: A default value to associate with this property.
+  public init(wrappedValue: sending Value)
+  where
+    Value: _OptionalProtocol,
+    Value: _Selection,
+    Value.QueryOutput == Value
+  {
+    state = .init(.sharedReader(SharedReader(value: wrappedValue)))
+  }
+
   /// Initializes this property with a query associated with the wrapped value.
   ///
   /// - Parameters:

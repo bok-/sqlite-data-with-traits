@@ -1,158 +1,153 @@
-import CloudKit
-import ConcurrencyExtras
+#if canImport(CloudKit)
+  import CloudKit
+  import ConcurrencyExtras
 
-#if canImport(CustomDump)
-  import CustomDump
-#endif
+  #if canImport(CustomDump)
+    import CustomDump
+  #endif
+  #if canImport(Dependencies)
+    import Dependencies
+  #endif
 
-@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
-package final class MockCloudContainer: CloudContainer {
-  package let _accountStatus: LockIsolated<CKAccountStatus>
-  package let containerIdentifier: String?
-  package let privateCloudDatabase: MockCloudDatabase
-  package let sharedCloudDatabase: MockCloudDatabase
+  @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+  package final class MockCloudContainer: CloudContainer {
+    package let _accountStatus: LockIsolated<CKAccountStatus>
+    package let containerIdentifier: String?
+    package let privateCloudDatabase: MockCloudDatabase
+    package let sharedCloudDatabase: MockCloudDatabase
 
-  package init(
-    accountStatus: CKAccountStatus = .available,
-    containerIdentifier: String?,
-    privateCloudDatabase: MockCloudDatabase,
-    sharedCloudDatabase: MockCloudDatabase
-  ) {
-    self._accountStatus = LockIsolated(accountStatus)
-    self.containerIdentifier = containerIdentifier
-    self.privateCloudDatabase = privateCloudDatabase
-    self.sharedCloudDatabase = sharedCloudDatabase
+    package init(
+      accountStatus: CKAccountStatus = .available,
+      containerIdentifier: String?,
+      privateCloudDatabase: MockCloudDatabase,
+      sharedCloudDatabase: MockCloudDatabase
+    ) {
+      self._accountStatus = LockIsolated(accountStatus)
+      self.containerIdentifier = containerIdentifier
+      self.privateCloudDatabase = privateCloudDatabase
+      self.sharedCloudDatabase = sharedCloudDatabase
 
-    guard let containerIdentifier else { return }
-    #if canImport(Dependencies)
-      @Dependency(\.mockCloudContainers) var mockCloudContainers
-    #else
-      let mockCloudContainers = LockIsolated<[String: MockCloudContainer]>([:])
-    #endif
-    mockCloudContainers.withValue { storage in
-      storage[containerIdentifier] = self
-    }
-  }
-
-  package func accountStatus() -> CKAccountStatus {
-    _accountStatus.withValue(\.self)
-  }
-
-  package var rawValue: CKContainer {
-    fatalError("This should never be called in tests.")
-  }
-
-  package func accountStatus() async throws -> CKAccountStatus {
-    _accountStatus.withValue { $0 }
-  }
-
-  package func shareMetadata(
-    for share: CKShare,
-    shouldFetchRootRecord: Bool
-  ) async throws -> ShareMetadata {
-    let database =
-      share.recordID.zoneID.ownerName == CKCurrentUserDefaultName
-      ? privateCloudDatabase
-      : sharedCloudDatabase
-
-    let rootRecord: CKRecord? = database.storage.withValue {
-      $0[share.recordID.zoneID]?.values.first { record in
-        record.share?.recordID == share.recordID
+      guard let containerIdentifier else { return }
+      #if canImport(Dependencies)
+        @Dependency(\.mockCloudContainers) var mockCloudContainers
+      #else
+        let mockCloudContainers = LockIsolated<[String: MockCloudContainer]>([:])
+      #endif
+      mockCloudContainers.withValue { storage in
+        storage[containerIdentifier] = self
       }
     }
 
-    return ShareMetadata(
-      containerIdentifier: containerIdentifier!,
-      hierarchicalRootRecordID: rootRecord?.recordID,
-      rootRecord: shouldFetchRootRecord ? rootRecord : nil,
-      share: share
-    )
-  }
-
-  package func accept(_ metadata: ShareMetadata) async throws -> CKShare {
-    guard let rootRecord = metadata.rootRecord
-    else {
-      fatalError("Must provide root record in mock shares during tests.")
+    package func accountStatus() -> CKAccountStatus {
+      _accountStatus.withValue(\.self)
     }
 
-    let (saveResults, _) = try sharedCloudDatabase.modifyRecords(
-      saving: [metadata.share, rootRecord]
-    )
-    try saveResults.values.forEach { _ = try $0.get() }
-    return metadata.share
-  }
+    package var rawValue: CKContainer {
+      fatalError("This should never be called in tests.")
+    }
 
-  package static func createContainer(identifier containerIdentifier: String) -> MockCloudContainer
-  {
-    #if canImport(Dependencies)
-      @Dependency(\.mockCloudContainers) var mockCloudContainers
-    #else
-      let mockCloudContainers = LockIsolated<[String: MockCloudContainer]>([:])
-    #endif
-    return mockCloudContainers.withValue { storage in
-      let container: MockCloudContainer
-      if let existingContainer = storage[containerIdentifier] {
-        return existingContainer
-      } else {
-        container = MockCloudContainer(
-          accountStatus: .available,
-          containerIdentifier: containerIdentifier,
-          privateCloudDatabase: MockCloudDatabase(databaseScope: .private),
-          sharedCloudDatabase: MockCloudDatabase(databaseScope: .shared)
-        )
-        container.privateCloudDatabase.set(container: container)
-        container.sharedCloudDatabase.set(container: container)
+    package func accountStatus() async throws -> CKAccountStatus {
+      _accountStatus.withValue { $0 }
+    }
+
+    package func shareMetadata(
+      for share: CKShare,
+      shouldFetchRootRecord: Bool
+    ) async throws -> ShareMetadata {
+      let database =
+        share.recordID.zoneID.ownerName == CKCurrentUserDefaultName
+        ? privateCloudDatabase
+        : sharedCloudDatabase
+
+      let rootRecord: CKRecord? = database.storage.withValue {
+        $0[share.recordID.zoneID]?.values.first { record in
+          record.share?.recordID == share.recordID
+        }
       }
-      storage[containerIdentifier] = container
-      return container
+
+      return ShareMetadata(
+        containerIdentifier: containerIdentifier!,
+        hierarchicalRootRecordID: rootRecord?.recordID,
+        rootRecord: shouldFetchRootRecord ? rootRecord : nil,
+        share: share
+      )
+    }
+
+    package func accept(_ metadata: ShareMetadata) async throws -> CKShare {
+      guard let rootRecord = metadata.rootRecord
+      else {
+        fatalError("Must provide root record in mock shares during tests.")
+      }
+
+      let (saveResults, _) = try sharedCloudDatabase.modifyRecords(
+        saving: [metadata.share, rootRecord]
+      )
+      try saveResults.values.forEach { _ = try $0.get() }
+      return metadata.share
+    }
+
+    package static func createContainer(identifier containerIdentifier: String)
+      -> MockCloudContainer
+    {
+      #if canImport(Dependencies)
+        @Dependency(\.mockCloudContainers) var mockCloudContainers
+      #else
+        let mockCloudContainers = LockIsolated<[String: MockCloudContainer]>([:])
+      #endif
+      return mockCloudContainers.withValue { storage in
+        let container: MockCloudContainer
+        if let existingContainer = storage[containerIdentifier] {
+          return existingContainer
+        } else {
+          container = MockCloudContainer(
+            accountStatus: .available,
+            containerIdentifier: containerIdentifier,
+            privateCloudDatabase: MockCloudDatabase(databaseScope: .private),
+            sharedCloudDatabase: MockCloudDatabase(databaseScope: .shared)
+          )
+          container.privateCloudDatabase.set(container: container)
+          container.sharedCloudDatabase.set(container: container)
+        }
+        storage[containerIdentifier] = container
+        return container
+      }
+    }
+
+    package static func == (lhs: MockCloudContainer, rhs: MockCloudContainer) -> Bool {
+      lhs === rhs
+    }
+
+    package func hash(into hasher: inout Hasher) {
+      hasher.combine(ObjectIdentifier(self))
     }
   }
 
-  package static func == (lhs: MockCloudContainer, rhs: MockCloudContainer) -> Bool {
-    lhs === rhs
-  }
-
-  package func hash(into hasher: inout Hasher) {
-    hasher.combine(ObjectIdentifier(self))
-  }
-
-  package var customDumpMirror: Mirror {
-    Mirror(
-      self,
-      children: [
-        ("privateCloudDatabase", privateCloudDatabase),
-        ("sharedCloudDatabase", sharedCloudDatabase),
-      ],
-      displayStyle: .struct
-    )
-  }
-}
-
-#if canImport(CustomDump)
-  @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
-  extension MockCloudContainer: CustomDumpReflectable {}
-#endif
-
-#if canImport(Dependencies)
-  @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
-  private enum MockCloudContainersKey: DependencyKey {
-    static var liveValue: LockIsolated<[String: MockCloudContainer]> {
-      LockIsolated<[String: MockCloudContainer]>([:])
-    }
-    static var testValue: LockIsolated<[String: MockCloudContainer]> {
-      LockIsolated<[String: MockCloudContainer]>([:])
-    }
-  }
-
-  extension DependencyValues {
+  #if canImport(CustomDump)
     @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
-    fileprivate var mockCloudContainers: LockIsolated<[String: MockCloudContainer]> {
-      get {
-        self[MockCloudContainersKey.self]
+    extension MockCloudContainer: CustomDumpReflectable {}
+  #endif
+
+  #if canImport(Dependencies)
+    @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+    private enum MockCloudContainersKey: DependencyKey {
+      static var liveValue: LockIsolated<[String: MockCloudContainer]> {
+        LockIsolated<[String: MockCloudContainer]>([:])
       }
-      set {
-        self[MockCloudContainersKey.self] = newValue
+      static var testValue: LockIsolated<[String: MockCloudContainer]> {
+        LockIsolated<[String: MockCloudContainer]>([:])
       }
     }
-  }
+
+    extension DependencyValues {
+      @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+      fileprivate var mockCloudContainers: LockIsolated<[String: MockCloudContainer]> {
+        get {
+          self[MockCloudContainersKey.self]
+        }
+        set {
+          self[MockCloudContainersKey.self] = newValue
+        }
+      }
+    }
+  #endif
 #endif

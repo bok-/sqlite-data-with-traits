@@ -41,10 +41,11 @@
         case recordNotRoot([ForeignKey])
         case recordTableNotSynchronized
         case recordTablePrivate
+        case syncEngineNotRunning
       }
 
-      let recordTableName: String
-      let recordPrimaryKey: String
+      var recordTableName: String?
+      var recordPrimaryKey: String?
       let reason: Reason
       let debugDescription: String
 
@@ -77,6 +78,16 @@
       configure: @Sendable (CKShare) -> Void
     ) async throws -> SharedRecord
     where T.TableColumns.PrimaryKey.QueryOutput: IdentifierStringConvertible {
+      guard isRunning
+      else {
+        throw SharingError(
+          reason: .syncEngineNotRunning,
+          debugDescription: """
+            Sync engine is not running. Make sure engine is running by invoking the 'start()' \
+            method, or using the 'startImmediately' argument when initializing the engine.
+            """
+        )
+      }
       guard tablesByName[T.tableName] != nil
       else {
         throw SharingError(
@@ -99,7 +110,7 @@
             """
         )
       }
-      guard !privateTables.contains(where: { T.self == $0 })
+      guard !privateTables.contains(where: { T.self == $0.base })
       else {
         throw SharingError(
           recordTableName: T.tableName,

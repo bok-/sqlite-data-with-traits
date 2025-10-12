@@ -1,5 +1,5 @@
 {
-  "originHash" : "d768266a6857fa7ae4bcc4bcf6d6721d124d0cdc698a500992fd9ecbf9f0b51b",
+  "originHash" : "476948fdde4f9c39c8275b8b0ba8f4ac618cb5a7c27b96f857013fe62732cb6c",
   "pins" : [
     {
       "identity" : "grdb.swift",
@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/bok-/swift-structured-queries-with-traits",
       "state" : {
-        "revision" : "83e4d5763b21b8692f21edbf09599d1bb46c2ba1",
-        "version" : "0.20.0"
+        "revision" : "ec9dc1fdd88730d7584a44e711857175f4047579",
+        "version" : "0.23.1"
       }
     },
     {

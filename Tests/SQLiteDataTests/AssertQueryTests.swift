@@ -6,9 +6,10 @@
   import SnapshotTesting
   import Testing
 
+  @MainActor
   @Suite(
     .dependency(\.defaultDatabase, try .database()),
-    .snapshots(record: .missing),
+    .snapshots(record: .failed),
   )
   struct AssertQueryTests {
     @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
@@ -90,6 +91,7 @@
     }
 
     @Test(.snapshots(record: .never))
+    @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
     func assertQueryFailsNoResultsNonEmptySnapshot() {
       withKnownIssue {
         assertQuery(
@@ -103,6 +105,94 @@
     }
 
     #if DEBUG
+      @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+      @Test func assertQueryBasic() throws {
+        assertQuery(
+          Record.all.select(\.id)
+        ) {
+          """
+          ┌───┐
+          │ 1 │
+          │ 2 │
+          │ 3 │
+          └───┘
+          """
+        }
+      }
+
+      @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+      @Test func assertQueryRecord() throws {
+        assertQuery(
+          Record.where { $0.id == 1 }
+        ) {
+          """
+          SELECT "records"."id", "records"."date"
+          FROM "records"
+          WHERE ("records"."id") = (1)
+          """
+        }
+      }
+
+      @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+      @Test func assertQueryBasicUpdate() throws {
+        assertQuery(
+          Record.all
+            .update { $0.date = Date(timeIntervalSince1970: 45) }
+            .returning { ($0.id, $0.date) }
+        ) {
+          """
+          ┌───┬────────────────────────────────┐
+          │ 1 │ Date(1970-01-01T00:00:45.000Z) │
+          │ 2 │ Date(1970-01-01T00:00:45.000Z) │
+          │ 3 │ Date(1970-01-01T00:00:45.000Z) │
+          └───┴────────────────────────────────┘
+          """
+        }
+      }
+
+      @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+      @Test func assertQueryRecordUpdate() throws {
+        assertQuery(
+          Record
+            .where { $0.id == 1 }
+            .update { $0.date = Date(timeIntervalSince1970: 45) }
+            .returning(\.self)
+        ) {
+          """
+          ┌────────────────────────────────────────┐
+          │ Record(                                │
+          │   id: 1,                               │
+          │   date: Date(1970-01-01T00:00:45.000Z) │
+          │ )                                      │
+          └────────────────────────────────────────┘
+          """
+        }
+      }
+
+      @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+      @Test func assertQueryEmpty() throws {
+        assertQuery(
+          Record.all.where { $0.id == -1 }.select(\.id)
+        ) {
+          """
+          (No results)
+          """
+        }
+      }
+
+      @Test(.snapshots(record: .never))
+      func assertQueryFailsNoResultsNonEmptySnapshot() {
+        withKnownIssue {
+          assertQuery(
+            Record.all.where { _ in false }
+          ) {
+            """
+            XYZ
+            """
+          }
+        }
+      }
+
       @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
       @Test func assertQueryBasicIncludeSQL() throws {
         assertQuery(
@@ -123,9 +213,7 @@
           """
         }
       }
-    #endif
 
-    #if DEBUG
       @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
       @Test func assertQueryRecordIncludeSQL() throws {
         assertQuery(

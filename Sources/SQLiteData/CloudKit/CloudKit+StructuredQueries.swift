@@ -148,13 +148,17 @@
 
   @available(macOS 13, iOS 16, tvOS 16, watchOS 9, *)
   extension CKRecordKeyValueSetting {
-    subscript(at key: String) -> Int64 {
+    fileprivate subscript(at key: String) -> Int64 {
       get {
         self["\(CKRecord.userModificationTimeKey)_\(key)"] as? Int64 ?? -1
       }
       set {
         self["\(CKRecord.userModificationTimeKey)_\(key)"] = max(self[at: key], newValue)
       }
+    }
+    fileprivate subscript(hash key: String) -> Data? {
+      get { self["\(key)_hash"] as? Data }
+      set { self["\(key)_hash"] = newValue }
     }
   }
 
@@ -173,8 +177,6 @@
 
   @available(macOS 13, iOS 16, tvOS 16, watchOS 9, *)
   extension CKRecord {
-    @TaskLocal static var fooo = false
-
     @discardableResult
     package func setValue(
       _ newValue: some CKRecordValueProtocol & Equatable,
@@ -192,8 +194,8 @@
     }
 
     @discardableResult
-    package func setValue(
-      _ newValue: [UInt8],
+    package func setAsset(
+      _ newValue: CKAsset,
       forKey key: CKRecord.FieldKey,
       at userModificationTime: Int64
     ) -> Bool {
@@ -202,24 +204,58 @@
       #else
         let dataManager = LiveDataManager()
       #endif
-
-      guard encryptedValues[at: key] <= userModificationTime
-      else {
-        return false
-      }
-
-      let asset = CKAsset(fileURL: URL(hash: newValue))
-      guard let fileURL = asset.fileURL, (self[key] as? CKAsset)?.fileURL != fileURL
+      guard
+        let fileURL = newValue.fileURL,
+        let hash = dataManager.sha256(of: fileURL)
       else { return false }
+      guard
+        encryptedValues[at: key] <= userModificationTime,
+        encryptedValues[hash: key] != hash
+      else { return false }
+
+      self[key] = newValue
+      encryptedValues[hash: key] = hash
+      encryptedValues[at: key] = userModificationTime
+      self.userModificationTime = userModificationTime
+      return true
+    }
+
+    @discardableResult
+    package func setValue(
+      _ newValue: [UInt8],
+      forKey key: CKRecord.FieldKey,
+      at userModificationTime: Int64
+    ) -> Bool {
+      guard encryptedValues[at: key] <= userModificationTime
+      else { return false }
+
+      #if canImport(Dependencies)
+        @Dependency(\.dataManager) var dataManager
+      #else
+        let dataManager = LiveDataManager()
+      #endif
+      let hash = newValue.sha256
+      let fileURL = dataManager.temporaryDirectory.appending(
+        component:
+          hash
+          .compactMap { String(format: "%02hhx", $0) }
+          .joined()
+      )
+      let asset = CKAsset(fileURL: fileURL)
       #if canImport(IssueReporting)
         withErrorReporting(.sqliteDataCloudKitFailure) {
           try dataManager.save(Data(newValue), to: fileURL)
         }
       #else
-        try? dataManager.save(Data(newValue), to: fileURL)
+        do {
+          try dataManager.save(Data(newValue), to: fileURL)
+        } catch {
+          return false
+        }
       #endif
       self[key] = asset
       encryptedValues[at: key] = userModificationTime
+      encryptedValues[hash: key] = hash
       self.userModificationTime = userModificationTime
       return true
     }
@@ -301,7 +337,7 @@
           let keyPath = column.keyPath as! KeyPath<T, Value.QueryOutput>
           let didSet: Bool
           if let value = other[key] as? CKAsset {
-            didSet = setValue(value, forKey: key, at: other[at: key])
+            didSet = setAsset(value, forKey: key, at: other.encryptedValues[at: key])
           } else if let value = other.encryptedValues[key] as? any EquatableCKRecordValueProtocol {
             didSet = setValue(value, forKey: key, at: other.encryptedValues[at: key])
           } else if other.encryptedValues[key] == nil {
@@ -313,7 +349,7 @@
           var isRowValueModified: Bool {
             switch Value(queryOutput: row[keyPath: keyPath]).queryBinding {
             case .blob(let value):
-              return (other[key] as? CKAsset)?.fileURL != URL(hash: value)
+              return other.encryptedValues[hash: key] != value.sha256
             case .bool(let value):
               return other.encryptedValues[key] != value
             case .double(let value):
@@ -383,6 +419,12 @@
     package var _recordChangeTag: String? {
       get { self[#function] }
       set { self[#function] = newValue }
+    }
+  }
+
+  extension DataProtocol {
+    fileprivate var sha256: Data {
+      Data(SHA256.hash(data: self))
     }
   }
 #endif

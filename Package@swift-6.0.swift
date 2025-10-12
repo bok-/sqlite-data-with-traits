@@ -29,7 +29,7 @@ let package = Package(
     .package(url: "https://github.com/pointfreeco/swift-perception", "1.4.1"..<"3.0.0"),
     .package(url: "https://github.com/pointfreeco/swift-sharing", from: "2.3.0"),
     .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.18.4"),
-    .package(url: "https://github.com/pointfreeco/swift-structured-queries", from: "0.19.1"),
+    .package(url: "https://github.com/pointfreeco/swift-structured-queries", from: "0.22.3"),
     .package(url: "https://github.com/pointfreeco/xctest-dynamic-overlay", from: "1.5.0"),
   ],
   targets: [
@@ -50,7 +50,9 @@ let package = Package(
       name: "SQLiteDataTestSupport",
       dependencies: [
         "SQLiteData",
+        .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
         .product(name: "CustomDump", package: "swift-custom-dump"),
+        .product(name: "Dependencies", package: "swift-dependencies"),
         .product(name: "InlineSnapshotTesting", package: "swift-snapshot-testing"),
         .product(name: "StructuredQueriesTestSupport", package: "swift-structured-queries"),
       ]

@@ -132,6 +132,12 @@ public struct FetchAll<Element: Sendable>: Sendable {
     state = .init(.sharedReader(SharedReader(value: wrappedValue)))
   }
 
+  /// Initializes this property with a default value.
+  public init(wrappedValue: [Element] = [])
+  where Element: StructuredQueriesCore._Selection, Element.QueryOutput == Element {
+    state = .init(.sharedReader(SharedReader(value: wrappedValue)))
+  }
+
   /// Initializes this property with a query associated with the wrapped value.
   ///
   /// - Parameters:

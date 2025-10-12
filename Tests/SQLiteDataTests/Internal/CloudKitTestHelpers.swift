@@ -190,3 +190,90 @@ extension SyncEngine {
       )
   }
 }
+
+@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+extension MockSyncEngine {
+  package func assertFetchChangesScopes(
+    _ scopes: [CKSyncEngine.FetchChangesOptions.Scope],
+    fileID: StaticString = #fileID,
+    filePath: StaticString = #filePath,
+    line: UInt = #line,
+    column: UInt = #column
+  ) {
+    _fetchChangesScopes.withValue {
+      expectNoDifference(
+        scopes,
+        $0,
+        fileID: fileID,
+        filePath: filePath,
+        line: line,
+        column: column
+      )
+      $0.removeAll()
+    }
+  }
+
+  package func assertAcceptedShareMetadata(
+    _ sharedMetadata: Set<ShareMetadata>,
+    fileID: StaticString = #fileID,
+    filePath: StaticString = #filePath,
+    line: UInt = #line,
+    column: UInt = #column
+  ) {
+    _acceptedShareMetadata.withValue {
+      expectNoDifference(
+        sharedMetadata,
+        $0,
+        fileID: fileID,
+        filePath: filePath,
+        line: line,
+        column: column
+      )
+      $0.removeAll()
+    }
+  }
+}
+
+@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+extension MockSyncEngineState {
+  package func assertPendingRecordZoneChanges(
+    _ changes: OrderedSet<CKSyncEngine.PendingRecordZoneChange>,
+    fileID: StaticString = #fileID,
+    filePath: StaticString = #filePath,
+    line: UInt = #line,
+    column: UInt = #column
+  ) {
+    _pendingRecordZoneChanges.withValue {
+      expectNoDifference(
+        Set(changes),
+        Set($0),
+        fileID: fileID,
+        filePath: filePath,
+        line: line,
+        column: column
+      )
+      $0.removeAll()
+    }
+  }
+
+  package func assertPendingDatabaseChanges(
+    _ changes: OrderedSet<CKSyncEngine.PendingDatabaseChange>,
+    fileID: StaticString = #fileID,
+    filePath: StaticString = #filePath,
+    line: UInt = #line,
+    column: UInt = #column
+  ) {
+    _pendingDatabaseChanges.withValue {
+      expectNoDifference(
+        Set(changes),
+        Set($0),
+        fileID: fileID,
+        filePath: filePath,
+        line: line,
+        column: column
+      )
+      $0.removeAll()
+    }
+  }
+
+}

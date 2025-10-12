@@ -75,7 +75,7 @@ let package = Package(
     ),
     .package(
       url: "https://github.com/bok-/swift-structured-queries-with-traits",
-      from: "0.20.0+traits",
+      from: "0.22.3",
       traits: [
         .trait(name: "StructuredQueriesTagged", condition: .when(traits: ["SQLiteDataTagged"])),
         .trait(
@@ -120,6 +120,7 @@ let package = Package(
       name: "SQLiteDataTestSupport",
       dependencies: [
         "SQLiteData",
+        .product(name: "ConcurrencyExtras", package: "swift-concurrency-extras"),
         .product(
           name: "CustomDump", package: "swift-custom-dump",
           condition: .when(traits: ["SQLiteDataCustomDump"])),
