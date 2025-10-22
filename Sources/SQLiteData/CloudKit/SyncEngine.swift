@@ -344,9 +344,23 @@
         .select(\.file)
         .fetchOne(db)
       if let attachedMetadatabasePath {
-        let attachedMetadatabaseName = URL(filePath: metadatabase.path).lastPathComponent
-        let metadatabaseName = URL(filePath: attachedMetadatabasePath).lastPathComponent
-        if attachedMetadatabaseName != metadatabaseName {
+        let metadatabaseName =
+          metadatabase.path.isEmpty
+          ? try URL.metadatabase(
+            databasePath: "",
+            containerIdentifier: self.container.containerIdentifier
+          )
+          .lastPathComponent
+          : URL(filePath: metadatabase.path).lastPathComponent
+        let attachedMetadatabaseName =
+          URL(string: attachedMetadatabasePath)?.lastPathComponent ?? ""
+
+        try URL.metadatabase(
+          databasePath: attachedMetadatabasePath,
+          containerIdentifier: self.container.containerIdentifier
+        )
+        .lastPathComponent
+        if metadatabaseName != attachedMetadatabaseName {
           throw SchemaError(
             reason: .metadatabaseMismatch(
               attachedPath: attachedMetadatabasePath,
@@ -1969,6 +1983,7 @@
       databasePath: String,
       containerIdentifier: String?
     ) throws -> URL {
+      let databasePath = databasePath.isEmpty ? ":memory:" : databasePath
       guard let databaseURL = URL(string: databasePath)
       else {
         struct InvalidDatabasePath: Error {}
@@ -1979,9 +1994,9 @@
         return URL(string: "file:\(String.sqliteDataCloudKitSchemaName)?mode=memory&cache=shared")!
       }
       return
-        databaseURL
-        .deletingLastPathComponent()
-        .appending(component: ".\(databaseURL.deletingPathExtension().lastPathComponent)")
+        databaseURL.deletingLastPathComponent().appending(
+          component: ".\(databaseURL.deletingPathExtension().lastPathComponent)"
+        )
         .appendingPathExtension("metadata\(containerIdentifier.map { "-\($0)" } ?? "").sqlite")
     }
 
@@ -2078,12 +2093,16 @@
         databasePath: databasePath,
         containerIdentifier: containerIdentifier
       )
-      let path = url.path(percentEncoded: false)
+      let path = url.isInMemory ? url.absoluteString : url.path(percentEncoded: false)
       try FileManager.default.createDirectory(
         at: .applicationSupportDirectory,
         withIntermediateDirectories: true
       )
-      _ = try DatabasePool(path: path).write { db in
+      let database: any DatabaseWriter =
+        url.isInMemory
+        ? try DatabaseQueue(path: path)
+        : try DatabasePool(path: path)
+      _ = try database.write { db in
         try #sql("SELECT 1").execute(db)
       }
       try #sql(
@@ -2100,7 +2119,6 @@
     package struct SchemaError: LocalizedError {
       package enum Reason {
         case cycleDetected
-        case inMemoryDatabase
         case invalidForeignKey(ForeignKey)
         case invalidForeignKeyAction(ForeignKey)
         case invalidTableName(String)
