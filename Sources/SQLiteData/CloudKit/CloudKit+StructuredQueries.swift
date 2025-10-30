@@ -9,12 +9,12 @@
   #endif
   import StructuredQueriesCore
 
-  extension _CKRecord where Self == CKRecord {
+  extension CKRecord {
     public typealias _AllFieldsRepresentation = SQLiteData._AllFieldsRepresentation<CKRecord>
     public typealias SystemFieldsRepresentation = _SystemFieldsRepresentation<CKRecord>
   }
 
-  extension _CKRecord where Self == CKShare {
+  extension CKShare {
     public typealias _AllFieldsRepresentation = SQLiteData._AllFieldsRepresentation<CKShare>
     public typealias SystemFieldsRepresentation = _SystemFieldsRepresentation<CKShare>
   }
@@ -115,10 +115,6 @@
 
     private struct DecodingError: Error {}
   }
-
-  extension CKRecord: _CKRecord {}
-
-  public protocol _CKRecord {}
 
   extension CKDatabase.Scope {
     public struct RawValueRepresentation: QueryBindable, QueryRepresentable {
