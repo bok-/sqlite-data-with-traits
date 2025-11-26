@@ -53,7 +53,7 @@ let package = Package(
     .package(url: "https://github.com/pointfreeco/swift-concurrency-extras", from: "1.3.0"),
     .package(url: "https://github.com/pointfreeco/swift-custom-dump", from: "1.3.3"),
     .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.9.0"),
-    .package(url: "https://github.com/pointfreeco/swift-perception", "1.4.1"..<"3.0.0"),
+    .package(url: "https://github.com/pointfreeco/swift-perception", from: "2.0.0"),
     .package(
       url: "https://github.com/bok-/swift-sharing-with-traits",
       from: "2.7.4+traits",
