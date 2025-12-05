@@ -237,7 +237,7 @@ CREATE TABLE "reminders"(
 ) STRICT
 ```
 
-> Tip: See SQLite's documentation on [foreign keys](https://sqlite.org/foreignkeys.html) for more information. 
+> Tip: See SQLite's documentation on [foreign keys](https://sqlite.org/foreignkeys.html) for more information.
 
 SQLiteData can synchronize many-to-one and many-to-many relationships to CloudKit,
 and you can enforce foreign key constraints in your database connection. While it is possible for

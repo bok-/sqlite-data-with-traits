@@ -18,14 +18,6 @@
     import UIKit
   #endif
 
-  private func shouldStartImmediately() -> Bool {
-    #if canImport(Dependencies)
-      DependencyValues._current.context == .live
-    #else
-      true
-    #endif
-  }
-
   /// An object that manages the synchronization of local and remote SQLite data.
   ///
   /// See <doc:CloudKit> for more information.
@@ -54,6 +46,7 @@
     private let observationRegistrar = ObservationRegistrar()
     private let notificationsObserver = LockIsolated<(any NSObjectProtocol)?>(nil)
     private let activityCounts = LockIsolated(ActivityCounts())
+    private let startTask = LockIsolated<Task<Void, Never>?>(nil)
 
     /// The error message used when a write occurs to a record for which the current user does not
     /// have permission.
@@ -104,7 +97,7 @@
       privateTables: repeat (each T2).Type,
       containerIdentifier: String? = nil,
       defaultZone: CKRecordZone = CKRecordZone(zoneName: "co.pointfree.SQLiteData.defaultZone"),
-      startImmediately: Bool? = nil,
+      startImmediately: Bool = true,
       delegate: (any SyncEngineDelegate)? = nil,
       logger: Logger? = nil
     ) throws
@@ -117,7 +110,6 @@
       let containerIdentifier =
         containerIdentifier
         ?? ModelConfiguration(groupContainer: .automatic).cloudKitContainerIdentifier
-      let startImmediately = startImmediately ?? shouldStartImmediately()
 
       #if canImport(IssueReporting)
         let logger =
@@ -146,12 +138,15 @@
       else {
         let privateDatabase = MockCloudDatabase(databaseScope: .private)
         let sharedDatabase = MockCloudDatabase(databaseScope: .shared)
+        let container = MockCloudContainer(
+          containerIdentifier: containerIdentifier ?? "iCloud.co.pointfree.SQLiteData.Tests",
+          privateCloudDatabase: privateDatabase,
+          sharedCloudDatabase: sharedDatabase
+        )
+        privateDatabase.set(container: container)
+        sharedDatabase.set(container: container)
         try self.init(
-          container: MockCloudContainer(
-            containerIdentifier: containerIdentifier ?? "iCloud.co.pointfree.SQLiteData.Tests",
-            privateCloudDatabase: privateDatabase,
-            sharedCloudDatabase: sharedDatabase
-          ),
+          container: container,
           defaultZone: defaultZone,
           defaultSyncEngines: { _, syncEngine in
             (
@@ -520,10 +515,14 @@
           ($0.tableName, $0)
         }
       )
-      return Task {
+
+      let startTask = Task<Void, Never> {
         await withErrorReporting(.sqliteDataCloudKitFailure) {
           guard try await container.accountStatus() == .available
           else { return }
+          syncEngines.withValue {
+            $0.private?.state.add(pendingDatabaseChanges: [.saveZone(defaultZone)])
+          }
           try await uploadRecordsToCloudKit(
             previousRecordTypeByTableName: previousRecordTypeByTableName,
             currentRecordTypeByTableName: currentRecordTypeByTableName
@@ -535,8 +534,10 @@
           try await cacheUserTables(recordTypes: currentRecordTypes)
         }
       }
+      self.startTask.withValue { $0 = startTask }
+      return startTask
     }
-    
+
     /// Fetches pending remote changes from the server.
     ///
     /// Use this method to ensure the sync engine immediately fetches all pending remote changes
@@ -548,6 +549,7 @@
     public func fetchChanges(
       _ options: CKSyncEngine.FetchChangesOptions = CKSyncEngine.FetchChangesOptions()
     ) async throws {
+      await startTask.withValue(\.self)?.value
       let (privateSyncEngine, sharedSyncEngine) = syncEngines.withValue {
         ($0.private, $0.shared)
       }
@@ -557,7 +559,7 @@
       async let shared: Void = sharedSyncEngine.fetchChanges(options)
       _ = try await (`private`, shared)
     }
-    
+
     /// Sends pending local changes to the server.
     ///
     /// Use this method to ensure the sync engine sends all pending local changes to the server
@@ -569,6 +571,7 @@
     public func sendChanges(
       _ options: CKSyncEngine.SendChangesOptions = CKSyncEngine.SendChangesOptions()
     ) async throws {
+      await startTask.withValue(\.self)?.value
       let (privateSyncEngine, sharedSyncEngine) = syncEngines.withValue {
         ($0.private, $0.shared)
       }
@@ -578,7 +581,7 @@
       async let shared: Void = sharedSyncEngine.sendChanges(options)
       _ = try await (`private`, shared)
     }
-    
+
     /// Synchronizes local and remote pending changes.
     ///
     /// Use this method to ensure the sync engine immediately fetches all pending remote changes
@@ -935,8 +938,7 @@
         parentForeignKey: parentForeignKey,
         defaultZone: defaultZone,
         privateTables: privateTables
-      )
-      {
+      ) {
         try trigger.execute(db)
       }
     }
@@ -952,7 +954,7 @@
         defaultZone: defaultZone,
         privateTables: privateTables
       )
-        .reversed() {
+      .reversed() {
         try trigger.drop().execute(db)
       }
     }

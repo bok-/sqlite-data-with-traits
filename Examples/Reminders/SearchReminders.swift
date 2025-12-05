@@ -265,7 +265,7 @@ struct SearchRemindersView: View {
   }
 }
 
-nonisolated fileprivate func baseQuery(
+nonisolated private func baseQuery(
   searchText: String,
   searchTokens: [SearchRemindersModel.Token]
 ) -> SelectOf<ReminderText, Reminder> {

@@ -193,7 +193,8 @@ extension Fetch {
     database: (any DatabaseReader)? = nil,
     scheduler: some ValueObservationScheduler & Hashable
   ) async throws -> FetchSubscription {
-    try await sharedReader.load(.fetch(request, database: databaseOrDefault(database), scheduler: scheduler))
+    try await sharedReader.load(
+      .fetch(request, database: databaseOrDefault(database), scheduler: scheduler))
     return FetchSubscription(sharedReader: sharedReader)
   }
 }
@@ -284,7 +285,8 @@ extension Fetch: Equatable where Value: Equatable {
       database: (any DatabaseReader)? = nil,
       animation: Animation
     ) async throws -> FetchSubscription {
-      try await sharedReader.load(.fetch(request, database: databaseOrDefault(database), animation: animation))
+      try await sharedReader.load(
+        .fetch(request, database: databaseOrDefault(database), animation: animation))
       return FetchSubscription(sharedReader: sharedReader)
     }
   }

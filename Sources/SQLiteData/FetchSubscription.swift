@@ -1,8 +1,9 @@
 import ConcurrencyExtras
-#if canImport(Perception)
-import Perception
-#endif
 import Sharing
+
+#if canImport(Perception)
+  import Perception
+#endif
 
 /// A subscription associated with `@FetchAll`, `@FetchOne`, and `@Fetch` observation.
 ///
@@ -17,7 +18,7 @@ import Sharing
 /// }
 /// ```
 #if !canImport(PerceptionCore)
-@available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+  @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
 #endif
 public struct FetchSubscription: Sendable {
   let cancellable = LockIsolated<Task<Void, any Error>?>(nil)
