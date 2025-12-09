@@ -2,9 +2,6 @@
   import CloudKit
   import ConcurrencyExtras
 
-  #if canImport(CustomDump)
-    import CustomDump
-  #endif
   #if canImport(Dependencies)
     import Dependencies
   #endif
@@ -121,11 +118,6 @@
       hasher.combine(ObjectIdentifier(self))
     }
   }
-
-  #if canImport(CustomDump)
-    @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
-    extension MockCloudContainer: CustomDumpReflectable {}
-  #endif
 
   #if canImport(Dependencies)
     @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)

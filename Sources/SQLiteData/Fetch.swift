@@ -207,7 +207,16 @@ extension Fetch: CustomReflectable {
 #endif
 extension Fetch: Equatable where Value: Equatable {
   public static func == (lhs: Self, rhs: Self) -> Bool {
-    lhs.sharedReader == rhs.sharedReader
+    lhs.state.withCriticalRegion { left in
+      rhs.state.withCriticalRegion { right in
+        switch (left, right) {
+        case (.sharedReader(let lhsReader), .sharedReader(let rhsReader)):
+          return lhsReader == rhsReader
+        default:
+          return false
+        }
+      }
+    }
   }
 }
 
