@@ -434,7 +434,11 @@ extension FetchAll: CustomReflectable {
 #endif
 extension FetchAll: Equatable where Element: Equatable {
   public static func == (lhs: Self, rhs: Self) -> Bool {
-    lhs.state.withCriticalRegion { left in
+    if lhs.state.id == rhs.state.id {
+      // _ManagedCriticalState.id is the ObjectIdentifier of its internal storage, so these are identical
+      return true
+    }
+    return lhs.state.withCriticalRegion { left in
       rhs.state.withCriticalRegion { right in
         switch (left, right) {
         case (.sharedReader(let lhsReader), .sharedReader(let rhsReader)):
