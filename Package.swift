@@ -75,7 +75,7 @@ let package = Package(
     ),
     .package(
       url: "https://github.com/bok-/swift-structured-queries-with-traits",
-      from: "0.22.3",
+      from: "0.24.0",
       traits: [
         .trait(name: "StructuredQueriesTagged", condition: .when(traits: ["SQLiteDataTagged"])),
         .trait(
